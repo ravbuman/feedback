@@ -1,0 +1,440 @@
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { validationResult } = require('express-validator');
+const Admin = require('../models/Admin');
+const Faculty = require('../models/Faculty');
+const Course = require('../models/Course');
+const Subject = require('../models/Subject');
+const FeedbackForm = require('../models/FeedbackForm');
+
+// Admin Authentication
+const login = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email, password } = req.body;
+    const admin = await Admin.findOne({ email, isActive: true });
+    
+    if (!admin) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    const isMatch = await admin.comparePassword(password);
+    if (!isMatch) {
+      return res.status(400).json({ message: 'Invalid credentials' });
+    }
+
+    const payload = { id: admin._id };
+    const token = jwt.sign(payload, process.env.JWT_SECRET || 'fallback_secret', {
+      expiresIn: '24h'
+    });
+
+    res.json({
+      token,
+      admin: {
+        id: admin._id,
+        email: admin.email
+      }
+    });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Verify token
+const verifyToken = async (req, res) => {
+  try {
+    // If we reach here, the token is valid (auth middleware already verified it)
+    res.json({
+      id: req.admin._id,
+      email: req.admin.email
+    });
+  } catch (error) {
+    console.error('Verify token error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Faculty Management
+const getAllFaculty = async (req, res) => {
+  try {
+    const faculty = await Faculty.find({ isActive: true })
+      .populate('subjects', 'subjectName course year semester')
+      .sort({ createdAt: -1 });
+    res.json(faculty);
+  } catch (error) {
+    console.error('Get faculty error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const createFaculty = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const faculty = new Faculty(req.body);
+    await faculty.save();
+    res.status(201).json(faculty);
+  } catch (error) {
+    console.error('Create faculty error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: 'Phone number already exists. Please use a different phone number.' 
+      });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const updateFaculty = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const faculty = await Faculty.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!faculty) {
+      return res.status(404).json({ message: 'Faculty not found' });
+    }
+
+    res.json(faculty);
+  } catch (error) {
+    console.error('Update faculty error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: 'Phone number already exists. Please use a different phone number.' 
+      });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const deleteFaculty = async (req, res) => {
+  try {
+    const faculty = await Faculty.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!faculty) {
+      return res.status(404).json({ message: 'Faculty not found' });
+    }
+
+    res.json({ message: 'Faculty deactivated successfully' });
+  } catch (error) {
+    console.error('Delete faculty error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Course Management
+const getAllCourses = async (req, res) => {
+  try {
+    const courses = await Course.find({ isActive: true }).sort({ createdAt: -1 });
+    res.json(courses);
+  } catch (error) {
+    console.error('Get courses error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const createCourse = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const course = new Course(req.body);
+    await course.save();
+    res.status(201).json(course);
+  } catch (error) {
+    console.error('Create course error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Course code already exists' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const updateCourse = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    res.json(course);
+  } catch (error) {
+    console.error('Update course error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Course code already exists' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const deleteCourse = async (req, res) => {
+  try {
+    const course = await Course.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!course) {
+      return res.status(404).json({ message: 'Course not found' });
+    }
+
+    res.json({ message: 'Course deactivated successfully' });
+  } catch (error) {
+    console.error('Delete course error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Subject Management
+const getAllSubjects = async (req, res) => {
+  try {
+    const subjects = await Subject.find({ isActive: true })
+      .populate('course', 'courseName courseCode')
+      .populate('faculty', 'name designation department')
+      .sort({ course: 1, year: 1, semester: 1 });
+    
+    res.json(subjects);
+  } catch (error) {
+    console.error('Get subjects error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const createSubject = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const subject = new Subject(req.body);
+    await subject.save();
+    
+    // Add subject to faculty's subjects array only if faculty is provided
+    if (req.body.faculty) {
+      await Faculty.findByIdAndUpdate(
+        req.body.faculty,
+        { $addToSet: { subjects: subject._id } }
+      );
+    }
+
+    await subject.populate('course', 'courseName courseCode');
+    if (subject.faculty) {
+      await subject.populate('faculty', 'name designation department');
+    }
+    
+    res.status(201).json(subject);
+  } catch (error) {
+    console.error('Create subject error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Subject already exists for this course, year, and semester' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const updateSubject = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const oldSubject = await Subject.findById(req.params.id);
+    if (!oldSubject) {
+      return res.status(404).json({ message: 'Subject not found' });
+    }
+
+    const subject = await Subject.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    ).populate('course', 'courseName courseCode');
+
+    if (subject.faculty) {
+      await subject.populate('faculty', 'name designation department');
+    }
+
+    // Handle faculty assignment changes
+    const oldFacultyId = oldSubject.faculty ? oldSubject.faculty.toString() : null;
+    const newFacultyId = req.body.faculty || null;
+
+    if (oldFacultyId !== newFacultyId) {
+      // Remove from old faculty if it existed
+      if (oldFacultyId) {
+        await Faculty.findByIdAndUpdate(
+          oldFacultyId,
+          { $pull: { subjects: subject._id } }
+        );
+      }
+      
+      // Add to new faculty if provided
+      if (newFacultyId) {
+        await Faculty.findByIdAndUpdate(
+          newFacultyId,
+          { $addToSet: { subjects: subject._id } }
+        );
+      }
+    }
+
+    res.json(subject);
+  } catch (error) {
+    console.error('Update subject error:', error);
+    if (error.code === 11000) {
+      return res.status(400).json({ message: 'Subject already exists for this course, year, and semester' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const deleteSubject = async (req, res) => {
+  try {
+    const subject = await Subject.findById(req.params.id);
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found' });
+    }
+
+    // Remove from faculty's subjects array only if faculty was assigned
+    if (subject.faculty) {
+      await Faculty.findByIdAndUpdate(
+        subject.faculty,
+        { $pull: { subjects: subject._id } }
+      );
+    }
+
+    // Soft delete the subject
+    await Subject.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true }
+    );
+
+    res.json({ message: 'Subject deactivated successfully' });
+  } catch (error) {
+    console.error('Delete subject error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Feedback Form Management
+const getAllFeedbackForms = async (req, res) => {
+  try {
+    const forms = await FeedbackForm.find({ isActive: true }).sort({ createdAt: -1 });
+    res.json(forms);
+  } catch (error) {
+    console.error('Get feedback forms error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const createFeedbackForm = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const form = new FeedbackForm(req.body);
+    await form.save();
+    res.status(201).json(form);
+  } catch (error) {
+    console.error('Create feedback form error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const updateFeedbackForm = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const form = await FeedbackForm.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true, runValidators: true }
+    );
+
+    if (!form) {
+      return res.status(404).json({ message: 'Feedback form not found' });
+    }
+
+    res.json(form);
+  } catch (error) {
+    console.error('Update feedback form error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const deleteFeedbackForm = async (req, res) => {
+  try {
+    const form = await FeedbackForm.findByIdAndUpdate(
+      req.params.id,
+      { isActive: false },
+      { new: true }
+    );
+
+    if (!form) {
+      return res.status(404).json({ message: 'Feedback form not found' });
+    }
+
+    res.json({ message: 'Feedback form deactivated successfully' });
+  } catch (error) {
+    console.error('Delete feedback form error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = {
+  login,
+  verifyToken,
+  getAllFaculty,
+  createFaculty,
+  updateFaculty,
+  deleteFaculty,
+  getAllCourses,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+  getAllSubjects,
+  createSubject,
+  updateSubject,
+  deleteSubject,
+  getAllFeedbackForms,
+  createFeedbackForm,
+  updateFeedbackForm,
+  deleteFeedbackForm
+};
