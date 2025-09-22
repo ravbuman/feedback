@@ -82,4 +82,8 @@ router.put('/feedback-forms/:id', [
 ], adminController.updateFeedbackForm);
 router.delete('/feedback-forms/:id', auth, adminController.deleteFeedbackForm);
 
+// Activate/Deactivate Feedback Form
+router.patch('/feedback-forms/:id/activate', auth, adminController.activateFeedbackForm);
+router.patch('/feedback-forms/:id/deactivate', auth, adminController.deactivateFeedbackForm);
+
 module.exports = router;

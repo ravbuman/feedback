@@ -146,9 +146,104 @@ const submitFeedback = async (req, res) => {
       semester
     });
 
-    if (existingResponse) {
-      return res.status(400).json({ message: 'Feedback already submitted for this course, year, and semester' });
+    // Get feedback form by ID
+const getFeedbackForm = async (req, res) => {
+  try {
+    const form = await FeedbackForm.findById(req.params.formId);
+    
+    if (!form) {
+      return res.status(404).json({ message: 'Feedback form not found' });
     }
+
+    if (!form.isActive) {
+      return res.status(400).json({ message: 'This feedback form is currently inactive. You cannot submit feedback at this time.' });
+    }
+
+    res.json(form);
+  } catch (error) {
+    console.error('Get feedback form error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Submit feedback
+const submitFeedback = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const { formId, studentInfo, courseInfo, subjectResponses } = req.body;
+
+  try {
+    const form = await FeedbackForm.findById(formId);
+    if (!form) {
+      return res.status(404).json({ message: 'Feedback form not found' });
+    }
+
+    if (!form.isActive) {
+      return res.status(400).json({ message: 'This feedback form is currently inactive.' });
+    }
+
+    const currentActivationPeriod = form.activationPeriods[form.activationPeriods.length - 1];
+
+    const newResponse = new Response({
+      studentInfo,
+      courseInfo,
+      subjectResponses,
+      submittedAt: new Date(),
+      activationPeriodStart: currentActivationPeriod.start,
+      activationPeriodEnd: currentActivationPeriod.end, // This will be null if the form is active
+    });
+
+    await newResponse.save();
+
+    res.status(201).json({ message: 'Feedback submitted successfully' });
+  } catch (error) {
+    console.error('Submit feedback error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get student response status (check if already submitted)
+const checkResponseStatus = async (req, res) => {
+  try {
+    const { rollNumber, course, year, semester } = req.query;
+    
+    if (!rollNumber || !course || !year || !semester) {
+      return res.status(400).json({ message: 'Missing required parameters' });
+    }
+
+    const existingResponse = await Response.findOne({
+      rollNumber,
+      course,
+      year: parseInt(year),
+      semester: parseInt(semester)
+    });
+
+    if (existingResponse) {
+      return res.json({
+        hasSubmitted: true,
+        submittedAt: existingResponse.submittedAt,
+        responseId: existingResponse._id
+      });
+    }
+
+    res.json({ hasSubmitted: false });
+  } catch (error) {
+    console.error('Check response status error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = {
+  getCourses,
+  getAllCourses,
+  getSubjectsByCourse,
+  getFeedbackForm,
+  submitFeedback,
+  checkResponseStatus
+};
 
     // Validate that all required questions are answered
     const formQuestions = form.questions.filter(q => q.isRequired);

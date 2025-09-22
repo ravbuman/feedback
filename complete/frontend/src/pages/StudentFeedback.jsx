@@ -34,7 +34,10 @@ const StudentFeedback = () => {
         setCourses(coursesResponse.data);
       } catch (error) {
         console.error('Error fetching data:', error);
-        toast.error('Failed to load form data');
+        if (error.response?.data?.message) {
+          toast.error(error.response.data.message);
+        }
+        setForm({ error: error.response?.data?.message || 'Failed to load form data' });
       } finally {
         setLoading(false);
       }
@@ -58,41 +61,39 @@ const StudentFeedback = () => {
       course: courseId,
       year: '',
       semester: '',
-      subjects: [],
+      subjectResponses: [],
     }));
-
-    if (courseId) {
-      try {
-        const response = await studentAPI.getSubjects(courseId, '', '');
-        setSubjects(response.data);
-      } catch (error) {
-        console.error('Error fetching subjects:', error);
-        toast.error('Failed to load subjects');
-      }
-    }
+    setSubjects([]);
   };
 
-  const handleYearSemesterChange = async () => {
-    const { course, year, semester } = formData;
+  const handleYearSemesterChange = async (e) => {
+    const { name, value } = e.target;
+    const newFormData = { ...formData, [name]: value };
+    setFormData(newFormData);
+
+    const { course, year, semester } = newFormData;
+
     if (course && year && semester) {
       try {
-        const response = await studentAPI.getSubjects(course, year, semester);
+        const response = await studentAPI.getSubjectsByCourse(course, year, semester);
         setSubjects(response.data);
-        
+
         // Initialize subject responses
         const subjectResponses = response.data.map(subject => ({
           subject: subject._id,
-          faculty: subject.faculty._id,
-          answers: form.questions.map(() => ({ questionId: '', answer: '' }))
+          faculty: subject.faculty?._id,
+          answers: form.questions.map(q => ({ questionId: q._id, answer: '' }))
         }));
-        
+
         setFormData(prev => ({
           ...prev,
           subjectResponses,
         }));
       } catch (error) {
         console.error('Error fetching subjects:', error);
-        toast.error('Failed to load subjects');
+        toast.error('Failed to load subjects for the selected criteria');
+        setSubjects([]);
+        setFormData(prev => ({ ...prev, subjectResponses: [] }));
       }
     }
   };
@@ -100,16 +101,16 @@ const StudentFeedback = () => {
   const handleAnswerChange = (subjectIndex, questionIndex, answer) => {
     setFormData(prev => ({
       ...prev,
-      subjectResponses: prev.subjectResponses.map((subjectResponse, sIndex) => 
-        sIndex === subjectIndex 
+      subjectResponses: prev.subjectResponses.map((subjectResponse, sIndex) =>
+        sIndex === subjectIndex
           ? {
-              ...subjectResponse,
-              answers: subjectResponse.answers.map((ans, qIndex) => 
-                qIndex === questionIndex 
-                  ? { questionId: form.questions[qIndex]._id, answer }
-                  : ans
-              )
-            }
+            ...subjectResponse,
+            answers: subjectResponse.answers.map((ans, qIndex) =>
+              qIndex === questionIndex
+                ? { ...ans, answer }
+                : ans
+            )
+          }
           : subjectResponse
       )
     }));
@@ -119,12 +120,23 @@ const StudentFeedback = () => {
     e.preventDefault();
     setSubmitting(true);
 
-    try {
-      const response = await studentAPI.submitFeedback({
-        ...formData,
-        feedbackForm: formId,
-      });
+    const payload = {
+      formId,
+      studentInfo: {
+        name: formData.studentName,
+        phoneNumber: formData.phoneNumber,
+        rollNumber: formData.rollNumber,
+      },
+      courseInfo: {
+        course: formData.course,
+        year: formData.year,
+        semester: formData.semester,
+      },
+      subjectResponses: formData.subjectResponses,
+    };
 
+    try {
+      await studentAPI.submitFeedback(payload);
       toast.success('Feedback submitted successfully!');
       navigate('/', { state: { success: true } });
     } catch (error) {
@@ -143,14 +155,14 @@ const StudentFeedback = () => {
     );
   }
 
-  if (!form) {
+  if (!form || form.error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="mx-auto h-12 w-12 text-red-500" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Form not found</h3>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Form not available</h3>
           <p className="mt-1 text-sm text-gray-500">
-            The feedback form you're looking for doesn't exist or is inactive.
+            {form?.error || "The feedback form you're looking for doesn't exist or is inactive."}
           </p>
         </div>
       </div>

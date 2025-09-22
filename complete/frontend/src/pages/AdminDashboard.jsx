@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Users, 
-  BookOpen, 
-  BookMarked, 
-  FileText, 
+import {
+  Users,
+  BookOpen,
+  FileText,
   BarChart3,
   Plus,
   UserPlus,
@@ -12,8 +11,6 @@ import {
   FilePlus,
   Link as LinkIcon,
   TrendingUp,
-  CheckCircle,
-  ArrowRight
 } from 'lucide-react';
 import { responseAPI } from '../services/api';
 import CreateFacultyModal from '../components/Modals/CreateFacultyModal';
@@ -84,24 +81,24 @@ const AdminDashboard = () => {
         window.location.href = '/admin/assign-faculty';
       }
     },
-      {
-        title: 'Manage Feedback Forms',
-        description: 'Create and manage custom feedback forms',
-        icon: FileText,
-        color: 'bg-indigo-500',
-        action: () => {
-          window.location.href = '/admin/feedback-forms';
-        }
-      },
-      {
-        title: 'Response Analytics',
-        description: 'View and analyze feedback responses',
-        icon: BarChart3,
-        color: 'bg-purple-500',
-        action: () => {
-          window.location.href = '/admin/analytics';
-        }
+    {
+      title: 'Manage Feedback Forms',
+      description: 'Create and manage custom feedback forms',
+      icon: FileText,
+      color: 'bg-indigo-500',
+      action: () => {
+        window.location.href = '/admin/feedback-forms';
       }
+    },
+    {
+      title: 'Response Analytics',
+      description: 'View and analyze feedback responses',
+      icon: BarChart3,
+      color: 'bg-purple-500',
+      action: () => {
+        window.location.href = '/admin/analytics';
+      }
+    }
   ];
 
   const statCards = [
@@ -205,57 +202,11 @@ const AdminDashboard = () => {
 
       {/* Quick Actions */}
       <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Quick Actions</h2>
-            <p className="text-gray-600">Manage your system with these quick actions</p>
-          </div>
-          <div className="flex space-x-2">
-            <Link
-              to="/admin/faculty"
-              className="btn btn-outline btn-sm flex items-center"
-            >
-              View Faculty
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Link>
-            <Link
-              to="/admin/courses"
-              className="btn btn-outline btn-sm flex items-center"
-            >
-              View Courses
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Link>
-            <Link
-              to="/admin/subjects"
-              className="btn btn-outline btn-sm flex items-center"
-            >
-              View Subjects
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Link>
-            <Link
-              to="/admin/assign-faculty"
-              className="btn btn-outline btn-sm flex items-center"
-            >
-              Assign Faculty
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Link>
-      <Link
-        to="/admin/feedback-forms"
-        className="btn btn-outline btn-sm flex items-center"
-      >
-        Feedback Forms
-        <ArrowRight className="h-4 w-4 ml-2" />
-      </Link>
-      <Link
-        to="/admin/analytics"
-        className="btn btn-outline btn-sm flex items-center"
-      >
-        Analytics
-        <ArrowRight className="h-4 w-4 ml-2" />
-      </Link>
-          </div>
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Quick Actions</h2>
+          <p className="text-gray-600">Manage your system with these quick actions</p>
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {quickActions.map((action, index) => (
             <button

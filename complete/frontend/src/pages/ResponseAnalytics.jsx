@@ -1,40 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { responseAPI, adminAPI } from '../services/api';
 import toast from 'react-hot-toast';
-import { 
-  BarChart3, 
-  PieChart, 
-  TrendingUp, 
-  Users, 
-  FileText, 
+import {
+  BarChart3,
   Download,
   Filter,
-  Search,
   Loader2,
-  Calendar,
-  BookOpen,
-  GraduationCap,
-  Target,
-  CheckCircle,
-  XCircle,
-  Star,
-  MessageSquare,
-  BarChart2,
-  Activity
+  PieChart as PieChartIcon,
+  List,
 } from 'lucide-react';
+import FacultyAnalytics from '../components/analytics/FacultyAnalytics';
+import QuestionFacultyAnalytics from '../components/analytics/QuestionFacultyAnalytics';
 
 const ResponseAnalytics = () => {
   const [analytics, setAnalytics] = useState(null);
+  const [facultyAnalytics, setFacultyAnalytics] = useState(null);
   const [forms, setForms] = useState([]);
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingFacultyAnalytics, setLoadingFacultyAnalytics] = useState(false);
   const [selectedForm, setSelectedForm] = useState('');
+  const [activationPeriods, setActivationPeriods] = useState([]);
+  const [showPieCharts, setShowPieCharts] = useState(false);
   const [filters, setFilters] = useState({
     course: '',
     year: '',
     semester: '',
-    subject: ''
+    subject: '',
+    activationPeriod: ''
   });
 
   useEffect(() => {
@@ -43,6 +37,10 @@ const ResponseAnalytics = () => {
 
   useEffect(() => {
     if (selectedForm) {
+      const form = forms.find(f => f._id === selectedForm);
+      if (form) {
+        setActivationPeriods(form.activationPeriods || []);
+      }
       fetchAnalytics();
     }
   }, [selectedForm, filters]);
@@ -53,7 +51,6 @@ const ResponseAnalytics = () => {
         adminAPI.getFeedbackForms(),
         adminAPI.getCourses()
       ]);
-      
       setForms(formsRes.data);
       setCourses(coursesRes.data);
       setLoading(false);
@@ -66,34 +63,36 @@ const ResponseAnalytics = () => {
 
   const fetchAnalytics = async () => {
     if (!selectedForm) return;
-    
+
     setLoading(true);
+    setLoadingFacultyAnalytics(true);
     try {
-      const params = {
-        formId: selectedForm,
-        ...filters
-      };
-      
-      const response = await responseAPI.getQuestionAnalytics(params);
+      const params = { formId: selectedForm, ...filters };
+      const [response, facultyResponse] = await Promise.all([
+        responseAPI.getQuestionAnalytics(params),
+        responseAPI.getFacultyQuestionAnalytics(params)
+      ]);
+
       setAnalytics(response.data);
+      setFacultyAnalytics(facultyResponse.data || []);
     } catch (error) {
       console.error('Error fetching analytics:', error);
       toast.error('Failed to load analytics');
     } finally {
       setLoading(false);
+      setLoadingFacultyAnalytics(false);
     }
   };
 
   const handleFormChange = (formId) => {
     setSelectedForm(formId);
     setAnalytics(null);
+    setFacultyAnalytics(null);
+    setFilters(prev => ({ ...prev, activationPeriod: '' }));
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
-      ...prev,
-      [key]: value
-    }));
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const handleExport = async () => {
@@ -103,14 +102,8 @@ const ResponseAnalytics = () => {
     }
 
     try {
-      const params = {
-        formId: selectedForm,
-        ...filters
-      };
-      
+      const params = { formId: selectedForm, ...filters };
       const response = await responseAPI.exportCSV(params);
-      
-      // Create download link
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -119,189 +112,10 @@ const ResponseAnalytics = () => {
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
-      
       toast.success('Data exported successfully');
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Failed to export data');
-    }
-  };
-
-  const renderScaleAnalytics = (question) => {
-    if (!question.scale) return null;
-
-    const { min, max, average, distribution } = question.scale;
-    const totalResponses = Object.values(distribution).reduce((sum, count) => sum + count, 0);
-
-    return (
-      <div className="bg-white rounded-lg p-6 border border-gray-200">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">{question.questionText}</h4>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-royal-600">{average.toFixed(2)}</div>
-            <div className="text-sm text-gray-500">Average Rating</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">{min}</div>
-            <div className="text-sm text-gray-500">Lowest Rating</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">{max}</div>
-            <div className="text-sm text-gray-500">Highest Rating</div>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <h5 className="font-medium text-gray-700">Rating Distribution</h5>
-          {Object.entries(distribution).map(([rating, count]) => {
-            const percentage = totalResponses > 0 ? (count / totalResponses) * 100 : 0;
-            return (
-              <div key={rating} className="flex items-center space-x-3">
-                <div className="w-8 text-sm font-medium text-gray-600">{rating}</div>
-                <div className="flex-1 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-royal-500 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${percentage}%` }}
-                  ></div>
-                </div>
-                <div className="w-16 text-sm text-gray-600 text-right">
-                  {count} ({percentage.toFixed(1)}%)
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderYesNoAnalytics = (question) => {
-    if (!question.yesno) return null;
-
-    const { yes, no, yesPercentage, noPercentage } = question.yesno;
-
-    return (
-      <div className="bg-white rounded-lg p-6 border border-gray-200">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">{question.questionText}</h4>
-        
-        <div className="grid grid-cols-2 gap-6">
-          <div className="text-center">
-            <div className="text-4xl font-bold text-green-600 mb-2">{yes}</div>
-            <div className="text-sm text-gray-500">Yes ({yesPercentage.toFixed(1)}%)</div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-              <div 
-                className="bg-green-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${yesPercentage}%` }}
-              ></div>
-            </div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-red-600 mb-2">{no}</div>
-            <div className="text-sm text-gray-500">No ({noPercentage.toFixed(1)}%)</div>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
-              <div 
-                className="bg-red-500 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${noPercentage}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderMultipleChoiceAnalytics = (question) => {
-    if (!question.multiplechoice) return null;
-
-    const { options } = question.multiplechoice;
-    const totalResponses = options.reduce((sum, option) => sum + option.count, 0);
-
-    return (
-      <div className="bg-white rounded-lg p-6 border border-gray-200">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">{question.questionText}</h4>
-        
-        <div className="space-y-3">
-          {options.map((option, index) => {
-            const percentage = totalResponses > 0 ? (option.count / totalResponses) * 100 : 0;
-            const colors = ['bg-blue-500', 'bg-green-500', 'bg-yellow-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500'];
-            const colorClass = colors[index % colors.length];
-            
-            return (
-              <div key={index} className="flex items-center space-x-3">
-                <div className="flex-1">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm font-medium text-gray-700">{option.text}</span>
-                    <span className="text-sm text-gray-500">{option.count} ({percentage.toFixed(1)}%)</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className={`${colorClass} h-2 rounded-full transition-all duration-300`}
-                      style={{ width: `${percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderTextAnalytics = (question) => {
-    if (!question.text) return null;
-
-    const { totalTextResponses, averageLength, wordCount, sampleResponses } = question.text;
-
-    return (
-      <div className="bg-white rounded-lg p-6 border border-gray-200">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">{question.questionText}</h4>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="text-center">
-            <div className="text-3xl font-bold text-royal-600">{totalTextResponses}</div>
-            <div className="text-sm text-gray-500">Text Responses</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-green-600">{Math.round(averageLength)}</div>
-            <div className="text-sm text-gray-500">Avg Characters</div>
-          </div>
-          <div className="text-center">
-            <div className="text-3xl font-bold text-blue-600">{Math.round(wordCount)}</div>
-            <div className="text-sm text-gray-500">Avg Words</div>
-          </div>
-        </div>
-
-        {sampleResponses.length > 0 && (
-          <div>
-            <h5 className="font-medium text-gray-700 mb-3">Sample Responses</h5>
-            <div className="space-y-2">
-              {sampleResponses.map((response, index) => (
-                <div key={index} className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700">
-                  "{response}"
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderQuestionAnalytics = (question) => {
-    switch (question.questionType) {
-      case 'scale':
-        return renderScaleAnalytics(question);
-      case 'yesno':
-        return renderYesNoAnalytics(question);
-      case 'multiplechoice':
-        return renderMultipleChoiceAnalytics(question);
-      case 'text':
-      case 'textarea':
-        return renderTextAnalytics(question);
-      default:
-        return null;
     }
   };
 
@@ -317,21 +131,40 @@ const ResponseAnalytics = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto p-4 md:p-6">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-              <BarChart3 className="h-8 w-8 text-royal-600 mr-3" />
-              Response Analytics
-            </h1>
-            <p className="text-gray-600 mt-2">Analyze feedback responses and generate insights</p>
-          </div>
+      <div className="mb-6 md:mb-8 flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+            <BarChart3 className="h-8 w-8 text-royal-600 mr-3" />
+            Response Analytics
+          </h1>
+          <p className="text-gray-600 mt-2">Analyze feedback responses and generate insights</p>
+        </div>
+
+        <div className="flex flex-wrap gap-2 md:gap-4">
+          <button
+            onClick={() => setShowPieCharts(!showPieCharts)}
+            disabled={!selectedForm}
+            className="flex items-center btn btn-secondary px-3 py-2 rounded-md hover:bg-gray-100 transition"
+          >
+            {showPieCharts ? (
+              <>
+                <List className="h-4 w-4 mr-2" />
+                Show Table
+              </>
+            ) : (
+              <>
+                <PieChartIcon className="h-4 w-4 mr-2" />
+                Show Pie Charts
+              </>
+            )}
+          </button>
+
           <button
             onClick={handleExport}
             disabled={!selectedForm}
-            className="btn btn-primary flex items-center"
+            className="flex items-center btn btn-primary px-3 py-2 rounded-md hover:bg-blue-700 transition"
           >
             <Download className="h-4 w-4 mr-2" />
             Export Data
@@ -340,51 +173,64 @@ const ResponseAnalytics = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-lg p-6 border border-gray-200 mb-6">
+      <div className="bg-white rounded-lg p-4 md:p-6 border border-gray-200 mb-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
           <Filter className="h-5 w-5 text-royal-600 mr-2" />
           Filters
         </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Feedback Form</label>
             <select
               value={selectedForm}
               onChange={(e) => handleFormChange(e.target.value)}
-              className="input"
+              className="input w-full"
             >
               <option value="">Select a form</option>
               {forms.map(form => (
-                <option key={form._id} value={form._id}>
-                  {form.formName}
+                <option key={form._id} value={form._id}>{form.formName}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Activation Period</label>
+            <select
+              value={filters.activationPeriod}
+              onChange={(e) => handleFilterChange('activationPeriod', e.target.value)}
+              className="input w-full"
+              disabled={!selectedForm || activationPeriods.length === 0}
+            >
+              <option value="">All Periods</option>
+              {activationPeriods.map((period, index) => (
+                <option key={index} value={period.start}>
+                  {`Period ${index + 1}: ${new Date(period.start).toLocaleDateString()} - ${period.end ? new Date(period.end).toLocaleDateString() : 'Active'}`}
                 </option>
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Course</label>
             <select
               value={filters.course}
               onChange={(e) => handleFilterChange('course', e.target.value)}
-              className="input"
+              className="input w-full"
             >
               <option value="">All Courses</option>
               {courses.map(course => (
-                <option key={course._id} value={course._id}>
-                  {course.courseName}
-                </option>
+                <option key={course._id} value={course._id}>{course.courseName}</option>
               ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
             <select
               value={filters.year}
               onChange={(e) => handleFilterChange('year', e.target.value)}
-              className="input"
+              className="input w-full"
             >
               <option value="">All Years</option>
               <option value="1">1st Year</option>
@@ -393,38 +239,31 @@ const ResponseAnalytics = () => {
               <option value="4">4th Year</option>
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Semester</label>
             <select
               value={filters.semester}
               onChange={(e) => handleFilterChange('semester', e.target.value)}
-              className="input"
+              className="input w-full"
             >
               <option value="">All Semesters</option>
-              <option value="1">1st Semester</option>
-              <option value="2">2nd Semester</option>
-              <option value="3">3rd Semester</option>
-              <option value="4">4th Semester</option>
-              <option value="5">5th Semester</option>
-              <option value="6">6th Semester</option>
-              <option value="7">7th Semester</option>
-              <option value="8">8th Semester</option>
+              {[...Array(8)].map((_, i) => (
+                <option key={i + 1} value={i + 1}>{i + 1}{['st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'th'][i]} Semester</option>
+              ))}
             </select>
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
             <select
               value={filters.subject}
               onChange={(e) => handleFilterChange('subject', e.target.value)}
-              className="input"
+              className="input w-full"
             >
               <option value="">All Subjects</option>
               {subjects.map(subject => (
-                <option key={subject._id} value={subject._id}>
-                  {subject.subjectName}
-                </option>
+                <option key={subject._id} value={subject._id}>{subject.subjectName}</option>
               ))}
             </select>
           </div>
@@ -438,8 +277,8 @@ const ResponseAnalytics = () => {
           <div className="bg-white rounded-lg p-6 border border-gray-200">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">{analytics.form.formName}</h3>
             <p className="text-gray-600 mb-6">{analytics.form.description}</p>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
               <div className="text-center">
                 <div className="text-3xl font-bold text-royal-600">{analytics.formStats.totalResponses}</div>
                 <div className="text-sm text-gray-500">Total Responses</div>
@@ -459,14 +298,49 @@ const ResponseAnalytics = () => {
             </div>
           </div>
 
+          {/* Faculty Analytics / Pie Charts */}
+          {loadingFacultyAnalytics ? (
+            <div className="text-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-royal-600 mx-auto mb-4" />
+              <p className="text-gray-600">Loading Faculty Analytics...</p>
+            </div>
+          ) : (
+            <FacultyAnalytics
+              data={facultyAnalytics || []}
+              questions={analytics.questionAnalytics}
+              showPieCharts={showPieCharts}
+            />
+          )}
+
           {/* Question Analytics */}
           <div className="space-y-6">
             <h3 className="text-xl font-semibold text-gray-900">Question Analysis</h3>
-            {analytics.questionAnalytics.map((question, index) => (
-              <div key={index}>
-                {renderQuestionAnalytics(question)}
-              </div>
-            ))}
+            {analytics.questionAnalytics.map((question, index) => {
+              const facultyBreakdown = (facultyAnalytics || []).map(facultyData => {
+                const questionAnalysis = facultyData.questionAnalytics.find(
+                  qa => qa.questionId === question.questionId
+                );
+                return {
+                  faculty: facultyData.faculty,
+                  subjects: facultyData.subjects,
+                  analytics: questionAnalysis?.analytics || {},
+                };
+              });
+
+              // fallback to question analytics if no faculty data
+              if (facultyBreakdown.length === 0) {
+                facultyBreakdown.push({ faculty: null, subjects: [], analytics: question.analytics });
+              }
+
+              return (
+                <QuestionFacultyAnalytics
+                  key={index}
+                  question={question}
+                  facultyBreakdown={facultyBreakdown}
+                  showPieCharts={showPieCharts}
+                />
+              )
+            })}
           </div>
         </div>
       ) : (

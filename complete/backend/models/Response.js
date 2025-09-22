@@ -87,7 +87,9 @@ const responseSchema = new mongoose.Schema({
   submittedAt: {
     type: Date,
     default: Date.now
-  }
+  },
+  activationPeriodStart: { type: Date },
+  activationPeriodEnd: { type: Date }
 }, {
   timestamps: true
 });

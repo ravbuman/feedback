@@ -44,6 +44,12 @@ const feedbackFormSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  activationPeriods: [
+    {
+      start: { type: Date },
+      end: { type: Date },
+    }
+  ],
   createdBy: {
     type: String,
     default: 'admin'

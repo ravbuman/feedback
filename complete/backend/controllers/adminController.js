@@ -351,7 +351,7 @@ const deleteSubject = async (req, res) => {
 // Feedback Form Management
 const getAllFeedbackForms = async (req, res) => {
   try {
-    const forms = await FeedbackForm.find({ isActive: true }).sort({ createdAt: -1 });
+    const forms = await FeedbackForm.find({}).sort({ createdAt: -1 });
     res.json(forms);
   } catch (error) {
     console.error('Get feedback forms error:', error);
@@ -403,7 +403,7 @@ const deleteFeedbackForm = async (req, res) => {
   try {
     const form = await FeedbackForm.findByIdAndUpdate(
       req.params.id,
-      { isActive: false },
+      { isActive: false }, // Keep it as soft delete
       { new: true }
     );
 
@@ -411,12 +411,62 @@ const deleteFeedbackForm = async (req, res) => {
       return res.status(404).json({ message: 'Feedback form not found' });
     }
 
-    res.json({ message: 'Feedback form deactivated successfully' });
+    res.json({ message: 'Feedback form archived successfully' });
   } catch (error) {
     console.error('Delete feedback form error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// Activate a feedback form
+const activateFeedbackForm = async (req, res) => {
+  try {
+    const form = await FeedbackForm.findById(req.params.id);
+    if (!form) {
+      return res.status(404).json({ message: 'Feedback form not found' });
+    }
+
+    if (form.isActive) {
+      return res.status(400).json({ message: 'Form is already active' });
+    }
+
+    form.isActive = true;
+    form.activationPeriods.push({ start: new Date() });
+
+    await form.save();
+    res.json(form);
+  } catch (error) {
+    console.error('Activate feedback form error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Deactivate a feedback form
+const deactivateFeedbackForm = async (req, res) => {
+  try {
+    const form = await FeedbackForm.findById(req.params.id);
+    if (!form) {
+      return res.status(404).json({ message: 'Feedback form not found' });
+    }
+
+    if (!form.isActive) {
+      return res.status(400).json({ message: 'Form is already deactivated' });
+    }
+
+    form.isActive = false;
+    const lastActivation = form.activationPeriods[form.activationPeriods.length - 1];
+    if (lastActivation && !lastActivation.end) {
+      lastActivation.end = new Date();
+    }
+
+    await form.save();
+    res.json(form);
+  } catch (error) {
+    console.error('Deactivate feedback form error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 
 module.exports = {
   login,
@@ -436,5 +486,7 @@ module.exports = {
   getAllFeedbackForms,
   createFeedbackForm,
   updateFeedbackForm,
-  deleteFeedbackForm
+  deleteFeedbackForm,
+  activateFeedbackForm,
+  deactivateFeedbackForm
 };

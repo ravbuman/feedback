@@ -22,7 +22,7 @@ const getAllResponses = async (req, res) => {
 
     // Build filter object
     const filter = {};
-    
+
     if (course) filter['courseInfo.course'] = course;
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
@@ -86,41 +86,39 @@ const getResponseById = async (req, res) => {
 // Get comprehensive analytics for different question types
 const getQuestionAnalytics = async (req, res) => {
   try {
-    const { formId, subjectId, courseId, year, semester } = req.query;
+    const { formId, subjectId, courseId, year, semester, activationPeriod } = req.query;
 
     // Build filter
     const filter = {};
+    if (formId) filter['subjectResponses.form'] = formId;
     if (subjectId) filter['subjectResponses.subject'] = subjectId;
     if (courseId) filter['courseInfo.course'] = courseId;
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
+    if (activationPeriod) {
+      const form = await FeedbackForm.findById(formId);
+      const period = form?.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+      if (period) {
+        filter['activationPeriodStart'] = period.start;
+      } else {
+        filter['activationPeriodStart'] = new Date(activationPeriod);
+      }
+    }
 
     // Get all responses
-    const allResponses = await Response.find(filter)
+    const responses = await Response.find(filter)
       .populate('subjectResponses.subject', 'subjectName')
       .populate('courseInfo.course', 'courseName courseCode');
-
-    // Filter responses by formId if specified
-    let responses = allResponses;
-    if (formId) {
-      responses = allResponses.filter(response => 
-        response.subjectResponses.some(sr => sr.form.toString() === formId)
-      );
-    }
 
     if (responses.length === 0) {
       return res.status(404).json({ message: 'No responses found for this form' });
     }
 
-    // Get question details from the first response (all responses should have same questions)
-    const firstResponse = responses[0];
-    const firstSubjectResponse = firstResponse.subjectResponses.find(sr => sr.form.toString() === formId);
-    
-    if (!firstSubjectResponse || !firstSubjectResponse.questions) {
-      return res.status(404).json({ message: 'Question details not found in responses' });
+    const form = await FeedbackForm.findById(formId);
+    if (!form) {
+        return res.status(404).json({ message: 'Feedback form not found' });
     }
-
-    const questions = firstSubjectResponse.questions;
+    const questions = form.questions;
 
     // Analyze each question type
     const questionAnalytics = questions.map((question, questionIndex) => {
@@ -128,14 +126,17 @@ const getQuestionAnalytics = async (req, res) => {
       const questionResponses = [];
       responses.forEach(response => {
         response.subjectResponses.forEach(subjectResponse => {
-          if (subjectResponse.form.toString() === formId && subjectResponse.answers[questionIndex] !== undefined) {
-            questionResponses.push(subjectResponse.answers[questionIndex]);
+          if (subjectResponse.form.toString() === formId) {
+            const responseQuestionIndex = subjectResponse.questions.findIndex(q => q.questionId.toString() === question._id.toString());
+            if (responseQuestionIndex !== -1 && subjectResponse.answers[responseQuestionIndex] !== undefined) {
+                questionResponses.push(subjectResponse.answers[responseQuestionIndex]);
+            }
           }
         });
       });
 
       let analytics = {
-        questionId: question._id,
+        questionId: question._id, // Use the canonical question ID
         questionText: question.questionText,
         questionType: question.questionType,
         totalResponses: questionResponses.length,
@@ -152,7 +153,7 @@ const getQuestionAnalytics = async (req, res) => {
               average: scaleValues.reduce((sum, val) => sum + val, 0) / scaleValues.length,
               distribution: {}
             };
-            
+
             // Create distribution
             for (let i = question.scaleMin; i <= question.scaleMax; i++) {
               analytics.scale.distribution[i] = scaleValues.filter(val => val === i).length;
@@ -182,7 +183,7 @@ const getQuestionAnalytics = async (req, res) => {
               choiceCounts[answer] = (choiceCounts[answer] || 0) + 1;
             }
           });
-          
+
           analytics.multiplechoice = {
             options: question.options.map(option => ({
               text: option,
@@ -197,7 +198,7 @@ const getQuestionAnalytics = async (req, res) => {
           const textResponses = questionResponses.filter(answer => typeof answer === 'string' && answer.trim().length > 0);
           analytics.text = {
             totalTextResponses: textResponses.length,
-            averageLength: textResponses.length > 0 ? 
+            averageLength: textResponses.length > 0 ?
               textResponses.reduce((sum, text) => sum + text.length, 0) / textResponses.length : 0,
             wordCount: textResponses.length > 0 ?
               textResponses.reduce((sum, text) => sum + text.split(' ').length, 0) / textResponses.length : 0,
@@ -224,13 +225,10 @@ const getQuestionAnalytics = async (req, res) => {
       uniqueStudents: new Set(responses.map(r => r.studentInfo.rollNumber)).size,
       subjects: allSubjects.size,
       courses: [...new Set(responses.map(r => r.courseInfo.course._id.toString()))].length,
-      averageCompletionTime: responses.length > 0 ? 
+      averageCompletionTime: responses.length > 0 ?
         responses.reduce((sum, r) => sum + (new Date(r.submittedAt) - new Date(r.createdAt)), 0) / responses.length : 0
     };
 
-    // Get form details from the database
-    const form = await FeedbackForm.findById(formId);
-    
     res.json({
       form: {
         _id: formId,
@@ -251,14 +249,14 @@ const getQuestionAnalytics = async (req, res) => {
 const getResponseStats = async (req, res) => {
   try {
     const { course, year, semester } = req.query;
-    
+
     const filter = {};
     if (course) filter['courseInfo.course'] = course;
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
 
     const totalResponses = await Response.countDocuments(filter);
-    
+
     const courseStats = await Response.aggregate([
       { $match: filter },
       {
@@ -342,7 +340,7 @@ const getResponseStats = async (req, res) => {
     // Get recent submissions (last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    
+
     const recentSubmissions = await Response.countDocuments({
       ...filter,
       submittedAt: { $gte: sevenDaysAgo }
@@ -400,11 +398,11 @@ const getResponseStats = async (req, res) => {
 const getFacultyPerformance = async (req, res) => {
   try {
     const { facultyId, course, year, semester } = req.query;
-    
+
     // Find subjects taught by this faculty
-    const facultySubjects = await Subject.find({ 
-      faculty: facultyId, 
-      isActive: true 
+    const facultySubjects = await Subject.find({
+      faculty: facultyId,
+      isActive: true
     }).select('_id subjectName');
 
     const subjectIds = facultySubjects.map(s => s._id);
@@ -478,12 +476,21 @@ const getFacultyPerformance = async (req, res) => {
 // Export responses to CSV
 const exportToCSV = async (req, res) => {
   try {
-    const { course, year, semester, formId } = req.query;
-    
+    const { course, year, semester, formId, activationPeriod } = req.query;
+
     const filter = {};
     if (course) filter['courseInfo.course'] = course;
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
+    if (activationPeriod) {
+      const form = await FeedbackForm.findById(formId);
+      const period = form?.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+      if (period) {
+        filter['activationPeriodStart'] = period.start;
+      } else {
+        filter['activationPeriodStart'] = new Date(activationPeriod);
+      }
+    }
 
     const allResponses = await Response.find(filter)
       .populate('courseInfo.course', 'courseName courseCode')
@@ -493,7 +500,7 @@ const exportToCSV = async (req, res) => {
     // Filter responses by formId if specified
     let responses = allResponses;
     if (formId) {
-      responses = allResponses.filter(response => 
+      responses = allResponses.filter(response =>
         response.subjectResponses.some(sr => sr.form.toString() === formId)
       );
     }
@@ -505,7 +512,7 @@ const exportToCSV = async (req, res) => {
     // Get question details from the first response
     const firstResponse = responses[0];
     const firstSubjectResponse = firstResponse.subjectResponses.find(sr => sr.form.toString() === formId);
-    
+
     if (!firstSubjectResponse || !firstSubjectResponse.questions) {
       return res.status(404).json({ message: 'Question details not found in responses' });
     }
@@ -514,13 +521,13 @@ const exportToCSV = async (req, res) => {
 
     // Create CSV headers
     let csv = 'Student Name,Phone Number,Roll Number,Course,Year,Semester,Subject,Submitted At';
-    
+
     // Add question headers
     questions.forEach((question, index) => {
       csv += `,Q${index + 1}: ${question.questionText}`;
     });
     csv += '\n';
-    
+
     // Add response data
     responses.forEach(response => {
       response.subjectResponses.forEach(subjectResponse => {
@@ -535,12 +542,12 @@ const exportToCSV = async (req, res) => {
             `"${subjectResponse.subject.subjectName}"`,
             response.submittedAt
           ];
-          
+
           // Add answers for each question
           questions.forEach((question, index) => {
             const answer = subjectResponse.answers[index];
             let answerText = '';
-            
+
             if (answer !== undefined) {
               if (Array.isArray(answer)) {
                 answerText = answer.join('; ');
@@ -548,10 +555,10 @@ const exportToCSV = async (req, res) => {
                 answerText = String(answer);
               }
             }
-            
+
             baseData.push(`"${answerText}"`);
           });
-          
+
           csv += baseData.join(',') + '\n';
         }
       });
@@ -559,7 +566,7 @@ const exportToCSV = async (req, res) => {
 
     const formName = questions.length > 0 ? 'feedback_form' : 'unknown_form';
     const filename = `feedback_responses_${formName}_${new Date().toISOString().split('T')[0]}.csv`;
-    
+
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
     res.send(csv);
@@ -573,7 +580,7 @@ const exportToCSV = async (req, res) => {
 const deleteResponse = async (req, res) => {
   try {
     const response = await Response.findByIdAndDelete(req.params.id);
-    
+
     if (!response) {
       return res.status(404).json({ message: 'Response not found' });
     }
@@ -585,6 +592,198 @@ const deleteResponse = async (req, res) => {
   }
 };
 
+
+const getFacultyQuestionAnalytics = async (req, res) => {
+  try {
+    const { formId, course, year, semester, subject, activationPeriod } = req.query;
+
+    // Build filter
+    const filter = {};
+    if (formId) filter['subjectResponses.form'] = formId;
+    if (course) filter['courseInfo.course'] = course;
+    if (year) filter['courseInfo.year'] = parseInt(year);
+    if (semester) filter['courseInfo.semester'] = parseInt(semester);
+    if (subject) filter['subjectResponses.subject'] = subject;
+    if (activationPeriod) {
+      const form = await FeedbackForm.findById(formId);
+      const period = form?.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+      if (period) {
+        filter['activationPeriodStart'] = period.start;
+      } else {
+        filter['activationPeriodStart'] = new Date(activationPeriod);
+      }
+    }
+
+    // Get all responses and populate necessary data
+    const responses = await Response.find(filter)
+      .populate({
+        path: 'subjectResponses.subject',
+        populate: {
+          path: 'faculty',
+          model: 'Faculty'
+        }
+      })
+      .populate('subjectResponses.form');
+
+    if (responses.length === 0) {
+      return res.json([]);
+    }
+
+    // Group responses by faculty
+    const facultyData = {};
+
+    responses.forEach(response => {
+      response.subjectResponses.forEach(sr => {
+        if (sr.subject && sr.subject.faculty) {
+          const facultyId = sr.subject.faculty._id.toString();
+          if (!facultyData[facultyId]) {
+            facultyData[facultyId] = {
+              faculty: sr.subject.faculty,
+              responses: []
+            };
+          }
+          facultyData[facultyId].responses.push(sr);
+        }
+      });
+    });
+
+    const form = await FeedbackForm.findById(formId);
+    if (!form) {
+        return res.status(404).json({ message: 'Feedback form not found' });
+    }
+    const questions = form.questions;
+
+    const stopWords = new Set([
+        'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'aren\'t', 'as', 'at',
+        'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by',
+        'can\'t', 'cannot', 'could', 'couldn\'t', 'did', 'didn\'t', 'do', 'does', 'doesn\'t', 'doing', 'don\'t', 'down', 'during',
+        'each', 'few', 'for', 'from', 'further', 'had', 'hadn\'t', 'has', 'hasn\'t', 'have', 'haven\'t', 'having', 'he', 'he\'d',
+        'he\'ll', 'he\'s', 'her', 'here', 'here\'s', 'hers', 'herself', 'him', 'himself', 'his', 'how', 'how\'s',
+        'i', 'i\'d', 'i\'ll', 'i\'m', 'i\'ve', 'if', 'in', 'into', 'is', 'isn\'t', 'it', 'it\'s', 'its', 'itself',
+        'let\'s', 'me', 'more', 'most', 'mustn\'t', 'my', 'myself',
+        'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours', 'ourselves', 'out', 'over', 'own',
+        'same', 'shan\'t', 'she', 'she\'d', 'she\'ll', 'she\'s', 'should', 'shouldn\'t', 'so', 'some', 'such',
+        'than', 'that', 'that\'s', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', 'there\'s', 'these', 'they', 'they\'d',
+        'they\'ll', 'they\'re', 'they\'ve', 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very',
+        'was', 'wasn\'t', 'we', 'we\'d', 'we\'ll', 'we\'re', 'we\'ve', 'were', 'weren\'t', 'what', 'what\'s', 'when', 'when\'s', 'where',
+        'where\'s', 'which', 'while', 'who', 'who\'s', 'whom', 'why', 'why\'s', 'with', 'won\'t', 'would', 'wouldn\'t',
+        'you', 'you\'d', 'you\'ll', 'you\'re', 'you\'ve', 'your', 'yours', 'yourself', 'yourselves',
+        'good', 'bad', 'ok', 'okay', 'nice'
+    ]);
+
+    const stemmer = (word) => {
+        const step1 = (w) => {
+            if (w.endsWith('sses')) return w.slice(0, -2);
+            if (w.endsWith('ies')) return w.slice(0, -2) + 'i';
+            if (w.endsWith('ss')) return w;
+            if (w.endsWith('s')) return w.slice(0, -1);
+            return w;
+        };
+
+        const step2 = (w) => {
+            if (w.endsWith('eed')) return w.slice(0, -1);
+            if (w.endsWith('ed') && w.length > 3) {
+                const stem = w.slice(0, -2);
+                if (/[aeiou]/.test(stem)) {
+                    if (['at', 'bl', 'iz'].includes(stem.slice(-2))) return stem + 'e';
+                    if (/(.)\1$/.test(stem) && !['l', 's', 'z'].includes(stem.slice(-1))) return stem.slice(0, -1);
+                    return stem;
+                }
+            }
+            if (w.endsWith('ing') && w.length > 4) {
+                const stem = w.slice(0, -3);
+                if (/[aeiou]/.test(stem)) {
+                    if (['at', 'bl', 'iz'].includes(stem.slice(-2))) return stem + 'e';
+                    if (/(.)\1$/.test(stem) && !['l', 's', 'z'].includes(stem.slice(-1))) return stem.slice(0, -1);
+                    return stem;
+                }
+            }
+            return w;
+        };
+
+        let stemmed = step1(word);
+        stemmed = step2(stemmed);
+        return stemmed;
+    };
+
+
+    // Process analytics for each faculty
+    const result = Object.values(facultyData).map(data => {
+      const { faculty, responses } = data;
+
+      const questionAnalytics = questions.map((question, index) => {
+        const answers = responses.map(sr => sr.answers[index]).filter(a => a !== undefined && a !== null);
+
+        let analyticsData = {};
+
+        switch (question.questionType) {
+          case 'scale':
+            const scaleValues = answers.map(a => parseInt(a)).filter(v => !isNaN(v));
+            if (scaleValues.length > 0) {
+              analyticsData = {
+                average: scaleValues.reduce((s, v) => s + v, 0) / scaleValues.length,
+              };
+            }
+            break;
+          case 'yesno':
+            const yesCount = answers.filter(a => a === 'yes' || a === true).length;
+            const noCount = answers.filter(a => a === 'no' || a === false).length;
+            const total = yesCount + noCount;
+            if (total > 0) {
+              analyticsData = {
+                yesPercentage: (yesCount / total) * 100,
+                noPercentage: (noCount / total) * 100,
+              };
+            }
+            break;
+          case 'multiplechoice':
+            const choiceCounts = answers.flat().reduce((acc, choice) => {
+              acc[choice] = (acc[choice] || 0) + 1;
+              return acc;
+            }, {});
+            const mostFrequentChoice = Object.entries(choiceCounts).sort((a, b) => b[1] - a[1])[0];
+            analyticsData = { mostFrequentChoice: mostFrequentChoice ? mostFrequentChoice[0] : null };
+            break;
+          case 'text':
+          case 'textarea':
+            const allWords = answers.join(' ').toLowerCase().split(/\s+/).filter(w => w.length > 1 && !stopWords.has(w));
+            const stemmedWords = allWords.map(w => stemmer(w));
+            const wordCounts = stemmedWords.reduce((acc, word) => {
+              acc[word] = (acc[word] || 0) + 1;
+              return acc;
+            }, {});
+            const frequentWords = Object.entries(wordCounts).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([word, count]) => ({ word, count }));
+            analyticsData = { frequentWords };
+            break;
+          default:
+            break;
+        }
+
+        return {
+          questionId: question._id,
+          questionText: question.questionText,
+          questionType: question.questionType,
+          analytics: analyticsData,
+        };
+      });
+
+      const subjectNames = [...new Set(responses.map(sr => sr.subject.subjectName))];
+
+      return {
+        faculty,
+        subjects: subjectNames,
+        questionAnalytics,
+      };
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    console.error('Get faculty question analytics error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 module.exports = {
   getAllResponses,
   getResponseById,
@@ -592,5 +791,6 @@ module.exports = {
   getResponseStats,
   exportToCSV,
   getFacultyPerformance,
-  deleteResponse
+  deleteResponse,
+  getFacultyQuestionAnalytics
 };
