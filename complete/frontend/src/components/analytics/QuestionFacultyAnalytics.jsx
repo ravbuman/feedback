@@ -1,7 +1,9 @@
-import React from 'react';
 import PieChart from './PieChart';
+import BarChart from './BarChart';
+import HorizontalBarChart from './HorizontalBarChart';
+import Histogram from './Histogram';
 
-const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showPieCharts }) => {
+const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showCharts }) => {
 
   const renderAnalyticsCell = (analytics) => {
     if (!analytics) {
@@ -20,12 +22,19 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showPieCharts })
           </div>
         );
       case 'multiplechoice':
-        // console.log("QuestionFacultyAnalytics - MultipleChoice choiceCounts:", analytics.choiceCounts); // Removed console.log
+        const rawChoiceCounts = analytics.choiceCounts || {};
+        const processedChoiceCounts = Array.isArray(rawChoiceCounts)
+          ? rawChoiceCounts.reduce((acc, item) => {
+            acc[item.choice] = item.count;
+            return acc;
+          }, {})
+          : rawChoiceCounts;
+
         return (
-          analytics.choiceCounts && Object.keys(analytics.choiceCounts).length > 0
-            ? Object.entries(analytics.choiceCounts).map(([choice, count]) => (
-                <div key={choice}>{choice}: {count}</div>
-              ))
+          Object.keys(processedChoiceCounts).length > 0
+            ? Object.entries(processedChoiceCounts).map(([choice, count]) => (
+              <div key={choice}>{choice}: {count}</div>
+            ))
             : <span className="text-gray-400">N/A</span>
         );
       case 'text':
@@ -42,55 +51,86 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showPieCharts })
     switch (question.questionType) {
       case 'scale': return 'Average Rating';
       case 'yesno': return 'Yes/No Percentage';
-      case 'multiplechoice': return 'Most Frequent Choice';
+      case 'multiplechoice': return 'Choices & Counts';
       case 'text':
       case 'textarea': return 'Most Frequent Words (Count)';
       default: return 'Analytics';
     }
   }
 
-  const getPieChartData = (analyticsData = {}) => {
-    let pieChartData = [];
+  const getChartData = (analyticsData = {}) => {
+    let chartData = [];
 
     switch (question.questionType) {
       case 'scale':
         if (analyticsData.distribution && Object.keys(analyticsData.distribution).length > 0) {
-          pieChartData = Object.entries(analyticsData.distribution).map(([label, value]) => ({
+          chartData = Object.entries(analyticsData.distribution).map(([label, value]) => ({
             label: `Rating ${label}`,
-            value,
+            value: value,
           }));
         } else if (analyticsData.average) {
-          pieChartData = [
+          chartData = [
             { label: 'Average Rating', value: analyticsData.average }
           ];
         }
         break;
 
       case 'yesno':
-        pieChartData = [
+        chartData = [
           { label: 'Yes', value: analyticsData.yesPercentage || analyticsData.yesCount || 0 },
           { label: 'No', value: analyticsData.noPercentage || analyticsData.noCount || 0 },
         ];
         break;
 
       case 'multiplechoice':
-        if (analyticsData.choiceCounts && Object.keys(analyticsData.choiceCounts).length > 0) {
-          pieChartData = Object.entries(analyticsData.choiceCounts).map(([label, value]) => ({
-            label,
-            value,
+        if (analyticsData.choiceCounts) {
+          const processedChoiceCounts = Array.isArray(analyticsData.choiceCounts)
+            ? analyticsData.choiceCounts.reduce((acc, item) => {
+              acc[item.choice] = item.count;
+              return acc;
+            }, {})
+            : analyticsData.choiceCounts;
+
+          if (Object.keys(processedChoiceCounts).length > 0) {
+            chartData = Object.entries(processedChoiceCounts).map(([label, value]) => ({
+              label,
+              value,
+            }));
+          }
+        }
+        break;
+
+      case 'text':
+      case 'textarea':
+        if (analyticsData.frequentWords && analyticsData.frequentWords.length > 0) {
+          chartData = analyticsData.frequentWords.map(fw => ({
+            label: fw.word,
+            value: fw.count,
           }));
-        } else if (analyticsData.mostFrequentChoice) {
-          pieChartData = [
-            { label: analyticsData.mostFrequentChoice, value: 1 }
-          ];
         }
         break;
 
       default:
-        pieChartData = [];
+        chartData = [];
     }
 
-    return pieChartData.filter(item => item.value > 0);
+    return chartData.filter(item => item.value > 0);
+  };
+
+  const renderChart = (data, title) => {
+    switch (question.questionType) {
+      case 'scale':
+        return <Histogram data={data} title={title} />;
+      case 'yesno':
+        return <PieChart data={data} title={title} />;
+      case 'multiplechoice':
+        return <BarChart data={data} title={title} />;
+      case 'text':
+      case 'textarea':
+        return <HorizontalBarChart data={data} title={title} />;
+      default:
+        return <div className="text-center text-gray-500 py-8">No chart available for this question type.</div>;
+    }
   };
 
   return (
@@ -99,16 +139,14 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showPieCharts })
         <h4 className="text-lg font-semibold text-gray-900">{question.questionText}</h4>
       </div>
 
-      {showPieCharts ? (
+      {showCharts ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {facultyBreakdown?.map((item, index) => {
-            const pieChartData = getPieChartData(item.analytics);
-            return (
-              <PieChart
-                key={item.faculty ? item.faculty._id : `overall-${question._id}-${index}`}
-                data={pieChartData}
-                title={item.faculty ? item.faculty.name : `Overall: ${question.questionText}`}
-              />
+            const chartData = getChartData(item.analytics);
+            return renderChart(
+              chartData,
+              item.faculty ? item.faculty.name : `Overall: ${question.questionText}`,
+              item.faculty ? item.faculty._id : `overall-${question._id}-${index}`
             );
           })}
         </div>
@@ -133,7 +171,7 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showPieCharts })
                     <div className="text-sm text-gray-500">{item.subjects.join(', ')}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {renderAnalyticsCell(item.analytics)}
+                    {renderAnalyticsCell(item.analytics)}
                   </td>
                 </tr>
               ))}

@@ -17,4 +17,6 @@ router.post('/submit-feedback', [
   body('subjectResponses').isArray({ min: 1 }),
 ], studentController.submitFeedback);
 
+router.get('/response-status', studentController.checkResponseStatus);
+
 module.exports = router;

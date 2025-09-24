@@ -37,10 +37,6 @@ const ResponseAnalytics = () => {
 
   useEffect(() => {
     if (selectedForm) {
-      const form = forms.find(f => f._id === selectedForm);
-      if (form) {
-        setActivationPeriods(form.activationPeriods || []);
-      }
       fetchAnalytics();
     }
   }, [selectedForm, filters]);
@@ -88,7 +84,21 @@ const ResponseAnalytics = () => {
     setSelectedForm(formId);
     setAnalytics(null);
     setFacultyAnalytics(null);
-    setFilters(prev => ({ ...prev, activationPeriod: '' }));
+
+    const form = forms.find(f => f._id === formId);
+    if (form) {
+      const periods = form.activationPeriods || [];
+      setActivationPeriods(periods);
+      if (periods.length > 0) {
+        const sortedPeriods = [...periods].sort((a, b) => new Date(b.start) - new Date(a.start));
+        setFilters(prev => ({ ...prev, activationPeriod: sortedPeriods[0].start }));
+      } else {
+        setFilters(prev => ({ ...prev, activationPeriod: '' }));
+      }
+    } else {
+      setActivationPeriods([]);
+      setFilters(prev => ({ ...prev, activationPeriod: '' }));
+    }
   };
 
   const handleFilterChange = (key, value) => {
@@ -308,7 +318,7 @@ const ResponseAnalytics = () => {
             <FacultyAnalytics
               data={facultyAnalytics || []}
               questions={analytics.questionAnalytics}
-              showPieCharts={showPieCharts}
+              showCharts={showPieCharts}
             />
           )}
 
@@ -337,7 +347,7 @@ const ResponseAnalytics = () => {
                   key={index}
                   question={question}
                   facultyBreakdown={facultyBreakdown}
-                  showPieCharts={showPieCharts}
+                  showCharts={showPieCharts}
                 />
               )
             })}

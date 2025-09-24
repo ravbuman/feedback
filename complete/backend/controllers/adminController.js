@@ -6,6 +6,7 @@ const Faculty = require('../models/Faculty');
 const Course = require('../models/Course');
 const Subject = require('../models/Subject');
 const FeedbackForm = require('../models/FeedbackForm');
+const Response = require('../models/Response');
 
 // Admin Authentication
 const login = async (req, res) => {
@@ -467,6 +468,78 @@ const deactivateFeedbackForm = async (req, res) => {
   }
 };
 
+const getFormAnalytics = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const form = await FeedbackForm.findById(id);
+    if (!form) {
+      return res.status(404).json({ message: 'Feedback form not found' });
+    }
+
+    const responses = await Response.find({ form: id });
+
+    const totalResponses = responses.length;
+
+    const questionAnalytics = form.questions.map(question => {
+      const questionId = question._id.toString();
+      const relevantAnswers = responses.map(r => r.answers.find(a => a.question.toString() === questionId)).filter(Boolean);
+
+      switch (question.questionType) {
+        case 'multiple-choice': {
+          const optionCounts = question.options.reduce((acc, option) => {
+            acc[option] = 0;
+            return acc;
+          }, {});
+          relevantAnswers.forEach(answer => {
+            if (answer.answer in optionCounts) {
+              optionCounts[answer.answer]++;
+            }
+          });
+          return {
+            questionText: question.questionText,
+            type: 'multiple-choice',
+            data: Object.entries(optionCounts).map(([option, count]) => ({ option, count })),
+          };
+        }
+        case 'rating': {
+          const ratings = relevantAnswers.map(a => parseInt(a.answer, 10)).filter(n => !isNaN(n));
+          const average = ratings.length > 0 ? ratings.reduce((sum, val) => sum + val, 0) / ratings.length : 0;
+          return {
+            questionText: question.questionText,
+            type: 'rating',
+            average,
+            count: ratings.length,
+          };
+        }
+        case 'open-ended': {
+          const answers = relevantAnswers.map(a => a.answer).filter(Boolean);
+          return {
+            questionText: question.questionText,
+            type: 'open-ended',
+            answers,
+          };
+        }
+        default:
+          return {
+            questionText: question.questionText,
+            type: question.questionType,
+            data: [],
+          };
+      }
+    });
+
+    res.json({
+      totalResponses,
+      questionAnalytics,
+    });
+
+  } catch (error) {
+    console.error('Get form analytics error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 
 module.exports = {
   login,
@@ -488,5 +561,6 @@ module.exports = {
   updateFeedbackForm,
   deleteFeedbackForm,
   activateFeedbackForm,
-  deactivateFeedbackForm
+  deactivateFeedbackForm,
+  getFormAnalytics
 };

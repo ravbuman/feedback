@@ -90,6 +90,7 @@ export const adminAPI = {
   deleteFeedbackForm: (id) => api.delete(`/admin/feedback-forms/${id}`),
   activateFeedbackForm: (id) => api.patch(`/admin/feedback-forms/${id}/activate`),
   deactivateFeedbackForm: (id) => api.patch(`/admin/feedback-forms/${id}/deactivate`),
+  getFormAnalytics: (id) => api.get(`/admin/feedback-forms/${id}/analytics`),
 };
 
 // Response API

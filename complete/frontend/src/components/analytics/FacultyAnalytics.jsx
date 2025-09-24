@@ -1,53 +1,87 @@
 import React from 'react';
 import PieChart from './PieChart';
+import BarChart from './BarChart';
+import HorizontalBarChart from './HorizontalBarChart';
+import Histogram from './Histogram';
 
-const FacultyAnalytics = ({ data, questions, showPieCharts }) => {
+const FacultyAnalytics = ({ data, questions, showCharts }) => {
 
-  const transformDataForPieChart = (analytics) => {
+  const getChartData = (analytics, questionType) => {
     if (!analytics || !analytics.analytics) return [];
 
-    const { questionType, analytics: analyticsData = {} } = analytics;
-    let pieChartData = [];
+    const analyticsData = analytics.analytics;
+    let chartData = [];
 
     switch (questionType) {
       case 'scale':
         if (analyticsData.distribution && Object.keys(analyticsData.distribution).length > 0) {
-          pieChartData = Object.entries(analyticsData.distribution).map(([label, value]) => ({
+          chartData = Object.entries(analyticsData.distribution).map(([label, value]) => ({
             label: `Rating ${label}`,
-            value,
+            value: value,
           }));
         } else if (analyticsData.average) {
-          pieChartData = [
+          chartData = [
             { label: 'Average Rating', value: analyticsData.average }
           ];
         }
         break;
 
       case 'yesno':
-        pieChartData = [
+        chartData = [
           { label: 'Yes', value: analyticsData.yesPercentage || analyticsData.yesCount || 0 },
           { label: 'No', value: analyticsData.noPercentage || analyticsData.noCount || 0 },
         ];
         break;
 
       case 'multiplechoice':
-        if (analyticsData.choiceCounts && Object.keys(analyticsData.choiceCounts).length > 0) {
-          pieChartData = Object.entries(analyticsData.choiceCounts).map(([label, value]) => ({
-            label,
-            value,
+        if (analyticsData.choiceCounts) {
+          const processedChoiceCounts = Array.isArray(analyticsData.choiceCounts)
+            ? analyticsData.choiceCounts.reduce((acc, item) => {
+                acc[item.choice] = item.count;
+                return acc;
+              }, {})
+            : analyticsData.choiceCounts;
+
+          if (Object.keys(processedChoiceCounts).length > 0) {
+            chartData = Object.entries(processedChoiceCounts).map(([label, value]) => ({
+              label,
+              value,
+            }));
+          }
+        }
+        break;
+
+      case 'text':
+      case 'textarea':
+        if (analyticsData.frequentWords && analyticsData.frequentWords.length > 0) {
+          chartData = analyticsData.frequentWords.map(fw => ({
+            label: fw.word,
+            value: fw.count,
           }));
-        } else if (analyticsData.mostFrequentChoice) {
-          pieChartData = [
-            { label: analyticsData.mostFrequentChoice, value: 1 }
-          ];
         }
         break;
 
       default:
-        pieChartData = [];
+        chartData = [];
     }
 
-    return pieChartData.filter(item => item.value > 0);
+    return chartData.filter(item => item.value > 0);
+  };
+
+  const renderChart = (data, title, questionType, key) => {
+    switch (questionType) {
+      case 'scale':
+        return <Histogram key={key} data={data} title={title} />;
+      case 'yesno':
+        return <PieChart key={key} data={data} title={title} />;
+      case 'multiplechoice':
+        return <BarChart key={key} data={data} title={title} />;
+      case 'text':
+      case 'textarea':
+        return <HorizontalBarChart key={key} data={data} title={title} />;
+      default:
+        return <div key={key} className="text-center text-gray-500 py-8">No chart available for this question type.</div>;
+    }
   };
 
   const renderAnalyticsCell = (analytics) => {
@@ -67,10 +101,17 @@ const FacultyAnalytics = ({ data, questions, showPieCharts }) => {
           </div>
         );
       case 'multiplechoice':
-        // console.log("FacultyAnalytics - MultipleChoice choiceCounts:", analytics.analytics.choiceCounts); // Removed console.log
+        const rawChoiceCounts = analytics.analytics.choiceCounts || {};
+        const processedChoiceCounts = Array.isArray(rawChoiceCounts)
+          ? rawChoiceCounts.reduce((acc, item) => {
+              acc[item.choice] = item.count;
+              return acc;
+            }, {})
+          : rawChoiceCounts;
+
         return (
-          analytics.analytics.choiceCounts && Object.keys(analytics.analytics.choiceCounts).length > 0
-            ? Object.entries(analytics.analytics.choiceCounts).map(([choice, count]) => (
+          Object.keys(processedChoiceCounts).length > 0
+            ? Object.entries(processedChoiceCounts).map(([choice, count]) => (
                 <div key={`${choice}-${count}`}>{choice}: {count}</div>
               ))
             : <span className="text-gray-400">N/A</span>
@@ -86,14 +127,14 @@ const FacultyAnalytics = ({ data, questions, showPieCharts }) => {
   return (
     <div className="bg-white rounded-lg p-6 border border-gray-200">
       <h3 className="text-xl font-semibold text-gray-900 mb-4">Faculty-wise Analytics</h3>
-      {showPieCharts ? (
+      {showCharts ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {questions?.map(question => {
             const aggregatedData = data?.reduce((acc, facultyData) => {
               const questionAnalytics = facultyData.questionAnalytics.find(qa => qa.questionId === question.questionId);
               if (questionAnalytics) {
-                const pieData = transformDataForPieChart(questionAnalytics);
-                pieData.forEach(d => {
+                const chartData = getChartData(questionAnalytics, question.questionType);
+                chartData.forEach(d => {
                   const existing = acc.find(item => item.label === d.label);
                   if (existing) {
                     existing.value += d.value;
@@ -105,12 +146,11 @@ const FacultyAnalytics = ({ data, questions, showPieCharts }) => {
               return acc;
             }, []);
 
-            return (
-              <PieChart
-                key={question._id}
-                data={aggregatedData}
-                title={question.questionText}
-              />
+            return renderChart(
+              aggregatedData,
+              question.questionText,
+              question.questionType,
+              question._id
             );
           })}
         </div>

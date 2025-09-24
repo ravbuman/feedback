@@ -21,11 +21,12 @@ import {
   PowerOff, 
   History
 } from 'lucide-react';
-import { adminAPI } from '../services/api';
+import { adminAPI, responseAPI } from '../services/api';
 import CreateFeedbackFormModal from '../components/Modals/CreateFeedbackFormModal';
 import EditFeedbackFormModal from '../components/Modals/EditFeedbackFormModal';
 import ViewFeedbackFormModal from '../components/Modals/ViewFeedbackFormModal';
 import DeleteConfirmModal from '../components/Modals/DeleteConfirmModal';
+import FormAnalyticsModal from '../components/Modals/FormAnalyticsModal';
 import toast from 'react-hot-toast';
 
 const FeedbackFormManagement = () => {
@@ -38,8 +39,11 @@ const FeedbackFormManagement = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showActivationHistoryModal, setShowActivationHistoryModal] = useState(false);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [selectedForm, setSelectedForm] = useState(null);
   const [copiedForms, setCopiedForms] = useState(new Set());
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   useEffect(() => {
     fetchForms();
@@ -55,6 +59,29 @@ const FeedbackFormManagement = () => {
       toast.error('Failed to fetch feedback forms');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAnalyticsClick = async (form) => {
+    setSelectedForm(form);
+    setShowAnalyticsModal(true);
+    setAnalyticsLoading(true);
+    try {
+      const params = { formId: form._id };
+      const [analyticsRes, facultyAnalyticsRes] = await Promise.all([
+        responseAPI.getQuestionAnalytics(params),
+        responseAPI.getFacultyQuestionAnalytics(params)
+      ]);
+      
+      setAnalyticsData({
+        analytics: analyticsRes.data,
+        facultyAnalytics: facultyAnalyticsRes.data || []
+      });
+    } catch (error) {
+      console.error('Error fetching form analytics:', error);
+      toast.error('Failed to fetch form analytics');
+    } finally {
+      setAnalyticsLoading(false);
     }
   };
 
@@ -291,7 +318,11 @@ const FeedbackFormManagement = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredForms.map((form) => (
-                  <tr key={form._id} className="hover:bg-gray-50">
+                  <tr 
+                    key={form._id} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleAnalyticsClick(form)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
@@ -335,7 +366,7 @@ const FeedbackFormManagement = () => {
                       <div className="flex items-center justify-end space-x-2">
                         {form.isActive ? (
                           <button
-                            onClick={() => handleActivation(form, 'deactivate')}
+                            onClick={(e) => { e.stopPropagation(); handleActivation(form, 'deactivate'); }}
                             className="text-yellow-600 hover:text-yellow-900 p-1 rounded-md hover:bg-yellow-50 transition-colors"
                             title="Deactivate form"
                           >
@@ -343,7 +374,7 @@ const FeedbackFormManagement = () => {
                           </button>
                         ) : (
                           <button
-                            onClick={() => handleActivation(form, 'activate')}
+                            onClick={(e) => { e.stopPropagation(); handleActivation(form, 'activate'); }}
                             className="text-green-600 hover:text-green-900 p-1 rounded-md hover:bg-green-50 transition-colors"
                             title="Activate form"
                           >
@@ -351,28 +382,28 @@ const FeedbackFormManagement = () => {
                           </button>
                         )}
                         <button
-                          onClick={() => handleActivationHistory(form)}
+                          onClick={(e) => { e.stopPropagation(); handleActivationHistory(form); }}
                           className="text-gray-600 hover:text-gray-900 p-1 rounded-md hover:bg-gray-50 transition-colors"
                           title="Activation history"
                         >
                           <History className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleView(form)}
+                          onClick={(e) => { e.stopPropagation(); handleView(form); }}
                           className="text-blue-600 hover:text-blue-900 p-1 rounded-md hover:bg-blue-50 transition-colors"
                           title="View form"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleEdit(form)}
+                          onClick={(e) => { e.stopPropagation(); handleEdit(form); }}
                           className="text-royal-600 hover:text-royal-900 p-1 rounded-md hover:bg-royal-50 transition-colors"
                           title="Edit form"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleCopyLink(form)}
+                          onClick={(e) => { e.stopPropagation(); handleCopyLink(form); }}
                           className={`p-1 rounded-md transition-colors ${
                             copiedForms.has(form._id)
                               ? 'text-green-600 bg-green-50'
@@ -387,14 +418,14 @@ const FeedbackFormManagement = () => {
                           )}
                         </button>
                         <button
-                          onClick={() => handleDuplicate(form)}
+                          onClick={(e) => { e.stopPropagation(); handleDuplicate(form); }}
                           className="text-green-600 hover:text-green-900 p-1 rounded-md hover:bg-green-50 transition-colors"
                           title="Duplicate form"
                         >
                           <Copy className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(form)}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(form); }}
                           className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
                           title="Archive form"
                         >
@@ -497,6 +528,14 @@ const FeedbackFormManagement = () => {
           form={selectedForm}
         />
       )}
+
+      <FormAnalyticsModal
+        isOpen={showAnalyticsModal}
+        onClose={() => setShowAnalyticsModal(false)}
+        form={selectedForm}
+        analyticsData={analyticsData}
+        analyticsLoading={analyticsLoading}
+      />
     </div>
   );
 };

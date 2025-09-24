@@ -86,4 +86,7 @@ router.delete('/feedback-forms/:id', auth, adminController.deleteFeedbackForm);
 router.patch('/feedback-forms/:id/activate', auth, adminController.activateFeedbackForm);
 router.patch('/feedback-forms/:id/deactivate', auth, adminController.deactivateFeedbackForm);
 
+// Get Form Analytics
+router.get('/feedback-forms/:id/analytics', auth, adminController.getFormAnalytics);
+
 module.exports = router;

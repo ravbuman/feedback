@@ -129,7 +129,7 @@ const StudentFeedbackSubmission = () => {
           year: parseInt(data.year),
           semester: parseInt(data.semester)
         },
-        responses: Object.keys(responses).map(subjectId => {
+        subjectResponses: Object.keys(responses).map(subjectId => {
           const subjectResponses = responses[subjectId];
           const answersWithQuestions = [];
 
@@ -158,7 +158,7 @@ const StudentFeedbackSubmission = () => {
         })
       };
 
-      await studentAPI.submitResponses(submissionData);
+      await studentAPI.submitFeedback(submissionData);
       toast.success('Feedback submitted successfully! Thank you for your input.');
       navigate('/');
     } catch (error) {

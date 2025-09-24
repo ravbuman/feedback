@@ -97,11 +97,11 @@ const getQuestionAnalytics = async (req, res) => {
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
     if (activationPeriod) {
       const form = await FeedbackForm.findById(formId);
-      const period = form?.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
-      if (period) {
-        filter['activationPeriodStart'] = period.start;
-      } else {
-        filter['activationPeriodStart'] = new Date(activationPeriod);
+      if (form && form.activationPeriods) {
+        const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+        if (period) {
+          filter['submittedAt'] = { $gte: period.start, $lte: period.end };
+        }
       }
     }
 
@@ -255,114 +255,46 @@ const getResponseStats = async (req, res) => {
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
 
-    const totalResponses = await Response.countDocuments(filter);
-
-    const courseStats = await Response.aggregate([
-      { $match: filter },
-      {
-        $group: {
-          _id: '$courseInfo.course',
-          count: { $sum: 1 }
-        }
-      },
-      {
-        $lookup: {
-          from: 'courses',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'courseInfo'
-        }
-      },
-      { $unwind: '$courseInfo' },
-      {
-        $project: {
-          courseName: '$courseInfo.courseName',
-          courseCode: '$courseInfo.courseCode',
-          count: 1
-        }
-      },
-      { $sort: { count: -1 } }
+    // Get total counts from all collections
+    const [
+      totalResponses,
+      totalFaculty,
+      totalSubjects,
+      totalCourses,
+      totalFeedbackForms,
+      recentSubmissions,
+    ] = await Promise.all([
+      Response.countDocuments(filter),
+      Faculty.countDocuments(),
+      Subject.countDocuments(),
+      Course.countDocuments(),
+      FeedbackForm.countDocuments(),
+      Response.countDocuments({
+        ...filter,
+        submittedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+      }),
     ]);
 
-    const facultyStats = await Response.aggregate([
-      { $match: filter },
-      {
-        $lookup: {
-          from: 'subjects',
-          localField: 'subject',
-          foreignField: '_id',
-          as: 'subjectInfo'
-        }
-      },
-      { $unwind: '$subjectInfo' },
-      {
-        $lookup: {
-          from: 'faculties',
-          localField: 'subjectInfo.faculty',
-          foreignField: '_id',
-          as: 'facultyInfo'
-        }
-      },
-      { $unwind: '$facultyInfo' },
-      {
-        $group: {
-          _id: '$subjectInfo.faculty',
-          count: { $sum: 1 },
-          facultyName: { $first: '$facultyInfo.name' },
-          designation: { $first: '$facultyInfo.designation' },
-          department: { $first: '$facultyInfo.department' }
-        }
-      },
-      { $sort: { count: -1 } }
-    ]);
-
-    const subjectStats = await Response.aggregate([
-      { $match: filter },
-      {
-        $lookup: {
-          from: 'subjects',
-          localField: 'subject',
-          foreignField: '_id',
-          as: 'subjectInfo'
-        }
-      },
-      { $unwind: '$subjectInfo' },
-      {
-        $group: {
-          _id: '$subject',
-          count: { $sum: 1 },
-          subjectName: { $first: '$subjectInfo.subjectName' }
-        }
-      },
-      { $sort: { count: -1 } }
-    ]);
-
-    // Get recent submissions (last 7 days)
+    // Get submissions by day for the last 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const recentSubmissions = await Response.countDocuments({
-      ...filter,
-      submittedAt: { $gte: sevenDaysAgo }
-    });
-
-    // Get submissions by day for the last 7 days
     const dailyStats = await Response.aggregate([
       {
         $match: {
           ...filter,
-          submittedAt: { $gte: sevenDaysAgo }
-        }
+          submittedAt: { $gte: sevenDaysAgo },
+        },
       },
       {
         $group: {
           _id: {
             year: { $year: '$submittedAt' },
             month: { $month: '$submittedAt' },
-            day: { $dayOfMonth: '$submittedAt' }
+            day: { $dayOfMonth: '$submittedAt' },
           },
-          count: { $sum: 1 }
-        }
+          count: { $sum: 1 },
+        },
       },
       {
         $project: {
@@ -370,23 +302,24 @@ const getResponseStats = async (req, res) => {
             $dateFromParts: {
               year: '$_id.year',
               month: '$_id.month',
-              day: '$_id.day'
-            }
+              day: '$_id.day',
+            },
           },
           count: 1,
-          _id: 0
-        }
+          _id: 0,
+        },
       },
-      { $sort: { date: 1 } }
+      { $sort: { date: 1 } },
     ]);
 
     res.json({
       totalResponses,
       recentSubmissions,
-      courseStats,
-      facultyStats,
-      subjectStats,
-      dailyStats
+      totalCourses,
+      totalFaculty,
+      totalSubjects,
+      totalFeedbackForms,
+      dailyStats,
     });
   } catch (error) {
     console.error('Get stats error:', error);
@@ -605,13 +538,8 @@ const getFacultyQuestionAnalytics = async (req, res) => {
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
     if (subject) filter['subjectResponses.subject'] = subject;
     if (activationPeriod) {
-      const form = await FeedbackForm.findById(formId);
-      const period = form?.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
-      if (period) {
-        filter['activationPeriodStart'] = period.start;
-      } else {
-        filter['activationPeriodStart'] = new Date(activationPeriod);
-      }
+      // Ensure activationPeriodStart in filter is a Date object for proper comparison
+      filter['activationPeriodStart'] = new Date(activationPeriod);
     }
 
     // Get all responses and populate necessary data
@@ -741,8 +669,7 @@ const getFacultyQuestionAnalytics = async (req, res) => {
               acc[choice] = (acc[choice] || 0) + 1;
               return acc;
             }, {});
-            const mostFrequentChoice = Object.entries(choiceCounts).sort((a, b) => b[1] - a[1])[0];
-            analyticsData = { mostFrequentChoice: mostFrequentChoice ? mostFrequentChoice[0] : null };
+            analyticsData = { choiceCounts: choiceCounts };
             break;
           case 'text':
           case 'textarea':

@@ -1,7 +1,7 @@
 import React from 'react';
 
 const PieChart = ({ data, title }) => {
-  const colors = ['#6366F1', '#818CF8', '#A5B4FC', '#C7D2FE', '#E0E7FF'];
+  const colors = ['#4CAF50', '#2196F3', '#FFC107', '#FF5722', '#9C27B0', '#00BCD4', '#FFEB3B', '#8BC34A', '#FF9800', '#607D8B']; // More diverse and vibrant colors
   const total = data.reduce((acc, d) => acc + d.value, 0);
   let cumulative = 0;
 
@@ -17,12 +17,18 @@ const PieChart = ({ data, title }) => {
   const radius = 90; // slightly smaller than SVG size so padding exists
   const center = 100;
 
+  const full100Slice = total > 0 ? data.find(slice => slice.value === total) : undefined;
+
   return (
     <div className="p-4 border rounded-lg shadow-sm bg-white">
       <h4 className="font-semibold text-center text-gray-800 mb-4">{title}</h4>
       <div className="flex justify-center items-center">
         <svg width="200" height="200" viewBox="0 0 200 200" preserveAspectRatio="xMidYMid meet">
-          {data.map((d, i) => {
+          {full100Slice ? (
+            <circle cx={center} cy={center} r={radius} fill={colors[data.indexOf(full100Slice) % colors.length]} />
+          ) : (
+            <>
+              {data.map((d, i) => {
             const startAngle = (cumulative / total) * 2 * Math.PI;
             const endAngle = ((cumulative + d.value) / total) * 2 * Math.PI;
             cumulative += d.value;
@@ -44,6 +50,8 @@ const PieChart = ({ data, title }) => {
               />
             );
           })}
+            </>
+          )}
         </svg>
       </div>
       <div className="mt-4 space-y-2">
