@@ -84,7 +84,7 @@ const Home = () => {
             </div>
 
             {/* Right Side - Visual Elements */}
-            <div className="relative">
+            <div className="relative w-full h-96 lg:h-[500px] lg:w-full flex items-center justify-center">
               {/* <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
                 <div className="space-y-6">
                   <div className="text-center">

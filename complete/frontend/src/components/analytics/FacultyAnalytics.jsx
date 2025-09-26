@@ -176,11 +176,14 @@ const FacultyAnalytics = ({ data, questions, showCharts }) => {
                     <div className="text-sm font-medium text-gray-900">{facultyData.faculty.name}</div>
                     <div className="text-sm text-gray-500">{facultyData.subjects.join(', ')}</div>
                   </td>
-                  {facultyData.questionAnalytics.map((analytics) => (
-                    <td key={analytics.questionId} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {renderAnalyticsCell(analytics)}
-                    </td>
-                  ))}
+                  {questions.map((question) => {
+                    const analytics = facultyData.questionAnalytics.find(qa => qa.questionId === question.questionId);
+                    return (
+                      <td key={question.questionId} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {analytics ? renderAnalyticsCell(analytics) : <span className="text-gray-400">N/A</span>}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
