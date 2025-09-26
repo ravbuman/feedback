@@ -7,11 +7,11 @@
   * {
     @apply border-gray-200;
   }
-  
+
   body {
     @apply bg-white text-gray-900 font-sans;
   }
-  
+
   html {
     @apply scroll-smooth;
   }
@@ -19,66 +19,94 @@
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-white;
+    @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-all duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-royal-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-white px-4 py-2 shadow-sm hover:shadow-md active:shadow-lg;
+    /* Added padding, shadow, and transition */
   }
-  
+
   .btn-primary {
-    @apply bg-royal-600 text-white hover:bg-royal-700 active:bg-royal-800 shadow-lg hover:shadow-xl transition-all duration-200;
+    @apply bg-royal-600 text-white hover:bg-royal-700 active:bg-royal-800 shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out;
   }
-  
+
   .btn-secondary {
     @apply bg-secondary-100 text-secondary-900 hover:bg-secondary-200 active:bg-secondary-300;
   }
-  
+
   .btn-outline {
     @apply border border-royal-600 text-royal-600 hover:bg-royal-50 active:bg-royal-100;
   }
-  
+
   .btn-ghost {
     @apply text-secondary-600 hover:bg-secondary-100 hover:text-secondary-900;
   }
-  
+
+  /* Adjusted sizes for better proportion */
   .btn-sm {
-    @apply h-8 px-3 text-xs;
+    @apply h-9 px-4 text-sm;
+    /* Slightly taller and less wide */
   }
-  
+
   .btn-md {
-    @apply h-10 px-4 py-2;
+    @apply h-11 px-6 text-base;
+    /* Balanced medium */
   }
-  
+
   .btn-lg {
-    @apply h-12 px-8 text-base;
+    @apply h-14 px-8 text-lg;
+    /* Taller large button */
   }
-  
+
   .input {
     @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-royal-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
-  
+
   .label {
     @apply text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70;
   }
-  
+
   .card {
     @apply rounded-lg border border-gray-200 bg-white text-gray-900 shadow-sm;
   }
-  
+
   .card-header {
     @apply flex flex-col space-y-1.5 p-6;
   }
-  
+
   .card-title {
     @apply text-2xl font-semibold leading-none tracking-tight;
   }
-  
+
   .card-description {
     @apply text-sm text-gray-500;
   }
-  
+
   .card-content {
     @apply p-6 pt-0;
   }
-  
+
   .card-footer {
     @apply flex items-center p-6 pt-0;
+  }
+
+  .card-hover-effect {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card-hover-effect::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--hover-color);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  .card-hover-effect:hover::after {
+    opacity: 0.7;
   }
 }

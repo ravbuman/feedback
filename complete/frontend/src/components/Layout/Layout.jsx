@@ -11,16 +11,14 @@ const Layout = ({ children }) => {
         {/* PydahSoft Branding */}
         <div className="flex items-center">
           <GraduationCap className="h-8 w-8 text-royal-600" />
-          <span className="ml-2 text-xl font-bold text-gray-900">PydahSoft</span>
+          <span className="ml-2 text-xl font-bold text-gray-900">Admin Dashboard</span>
         </div>
 
         {/* Right side - Admin Dashboard text and logout */}
         <div className="flex items-center gap-x-4">
           {isAuthenticated && (
             <>
-              <div className="text-sm font-medium text-gray-900">
-                Admin Dashboard
-              </div>
+
               <button
                 onClick={logout}
                 className="flex items-center gap-x-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"

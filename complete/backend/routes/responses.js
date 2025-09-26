@@ -13,6 +13,9 @@ router.get('/:id', auth, responseController.getResponseById);
 // Get question analytics for specific form
 router.get('/analytics/questions', auth, responseController.getQuestionAnalytics);
 
+// Get faculty question analytics for specific form
+router.get('/analytics/faculty-questions', auth, responseController.getFacultyQuestionAnalytics);
+
 // Get response statistics
 router.get('/stats/overview', auth, responseController.getResponseStats);
 

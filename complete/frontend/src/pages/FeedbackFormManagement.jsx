@@ -16,26 +16,34 @@ import {
   CheckCircle,
   XCircle,
   Link,
-  Check
+  Check,
+  Power, 
+  PowerOff, 
+  History
 } from 'lucide-react';
-import { adminAPI } from '../services/api';
+import { adminAPI, responseAPI } from '../services/api';
 import CreateFeedbackFormModal from '../components/Modals/CreateFeedbackFormModal';
 import EditFeedbackFormModal from '../components/Modals/EditFeedbackFormModal';
 import ViewFeedbackFormModal from '../components/Modals/ViewFeedbackFormModal';
 import DeleteConfirmModal from '../components/Modals/DeleteConfirmModal';
+import FormAnalyticsModal from '../components/Modals/FormAnalyticsModal';
 import toast from 'react-hot-toast';
 
 const FeedbackFormManagement = () => {
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all'); // all, active, inactive
+  const [filterStatus, setFilterStatus] = useState('all'); // all, active, deactivated
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showActivationHistoryModal, setShowActivationHistoryModal] = useState(false);
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [selectedForm, setSelectedForm] = useState(null);
   const [copiedForms, setCopiedForms] = useState(new Set());
+  const [analyticsData, setAnalyticsData] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
   useEffect(() => {
     fetchForms();
@@ -54,6 +62,29 @@ const FeedbackFormManagement = () => {
     }
   };
 
+  const handleAnalyticsClick = async (form) => {
+    setSelectedForm(form);
+    setShowAnalyticsModal(true);
+    setAnalyticsLoading(true);
+    try {
+      const params = { formId: form._id };
+      const [analyticsRes, facultyAnalyticsRes] = await Promise.all([
+        responseAPI.getQuestionAnalytics(params),
+        responseAPI.getFacultyQuestionAnalytics(params)
+      ]);
+      
+      setAnalyticsData({
+        analytics: analyticsRes.data,
+        facultyAnalytics: facultyAnalyticsRes.data || []
+      });
+    } catch (error) {
+      console.error('Error fetching form analytics:', error);
+      toast.error('Failed to fetch form analytics');
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
+
   const handleCreateSuccess = (newForm) => {
     setForms(prev => [newForm, ...prev]);
     toast.success('Feedback form created successfully!');
@@ -67,8 +98,33 @@ const FeedbackFormManagement = () => {
   };
 
   const handleDeleteSuccess = () => {
-    setForms(prev => prev.filter(f => f._id !== selectedForm._id));
-    toast.success('Feedback form deleted successfully!');
+    setForms(prev => prev.map(f => f._id === selectedForm._id ? { ...f, isActive: false } : f));
+    toast.success('Feedback form deactivated successfully!');
+  };
+
+  const handleActivation = async (form, action) => {
+    const apiCall = action === 'activate' 
+      ? adminAPI.activateFeedbackForm
+      : adminAPI.deactivateFeedbackForm;
+    const toastMessage = action === 'activate'
+      ? 'Form activated successfully!'
+      : 'Form deactivated successfully!';
+
+    try {
+      const response = await apiCall(form._id);
+      setForms(prev => 
+        prev.map(f => f._id === form._id ? response.data : f)
+      );
+      toast.success(toastMessage);
+    } catch (error) {
+      console.error(`Error ${action} form:`, error);
+      toast.error(`Failed to ${action} form`);
+    }
+  };
+
+  const handleActivationHistory = (form) => {
+    setSelectedForm(form);
+    setShowActivationHistoryModal(true);
   };
 
   const handleEdit = (form) => {
@@ -141,8 +197,8 @@ const FeedbackFormManagement = () => {
       setShowDeleteModal(false);
       setSelectedForm(null);
     } catch (error) {
-      console.error('Error deleting form:', error);
-      toast.error('Failed to delete feedback form');
+      console.error('Error deactivating form:', error);
+      toast.error('Failed to deactivate feedback form');
     }
   };
 
@@ -152,14 +208,14 @@ const FeedbackFormManagement = () => {
                          (f.description && f.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesFilter = filterStatus === 'all' || 
-                         (filterStatus === 'active' && f.isActive !== false) ||
-                         (filterStatus === 'inactive' && f.isActive === false);
+                         (filterStatus === 'active' && f.isActive) ||
+                         (filterStatus === 'deactivated' && !f.isActive);
     
     return matchesSearch && matchesFilter;
   });
 
-  const activeCount = forms.filter(f => f.isActive !== false).length;
-  const inactiveCount = forms.filter(f => f.isActive === false).length;
+  const activeCount = forms.filter(f => f.isActive).length;
+  const inactiveCount = forms.filter(f => !f.isActive).length;
   const totalQuestions = forms.reduce((total, form) => total + (form.questions?.length || 0), 0);
 
   if (loading) {
@@ -208,7 +264,7 @@ const FeedbackFormManagement = () => {
             >
               <option value="all">All Forms</option>
               <option value="active">Active Forms</option>
-              <option value="inactive">Inactive Forms</option>
+              <option value="deactivated">Deactivated Forms</option>
             </select>
           </div>
         </div>
@@ -262,7 +318,11 @@ const FeedbackFormManagement = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredForms.map((form) => (
-                  <tr key={form._id} className="hover:bg-gray-50">
+                  <tr 
+                    key={form._id} 
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => handleAnalyticsClick(form)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
@@ -292,11 +352,11 @@ const FeedbackFormManagement = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        form.isActive !== false 
+                        form.isActive 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {form.isActive !== false ? 'Active' : 'Inactive'}
+                        {form.isActive ? 'Active' : 'Deactivated'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -304,22 +364,46 @@ const FeedbackFormManagement = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
+                        {form.isActive ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleActivation(form, 'deactivate'); }}
+                            className="text-yellow-600 hover:text-yellow-900 p-1 rounded-md hover:bg-yellow-50 transition-colors"
+                            title="Deactivate form"
+                          >
+                            <PowerOff className="h-4 w-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleActivation(form, 'activate'); }}
+                            className="text-green-600 hover:text-green-900 p-1 rounded-md hover:bg-green-50 transition-colors"
+                            title="Activate form"
+                          >
+                            <Power className="h-4 w-4" />
+                          </button>
+                        )}
                         <button
-                          onClick={() => handleView(form)}
+                          onClick={(e) => { e.stopPropagation(); handleActivationHistory(form); }}
+                          className="text-gray-600 hover:text-gray-900 p-1 rounded-md hover:bg-gray-50 transition-colors"
+                          title="Activation history"
+                        >
+                          <History className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleView(form); }}
                           className="text-blue-600 hover:text-blue-900 p-1 rounded-md hover:bg-blue-50 transition-colors"
                           title="View form"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleEdit(form)}
+                          onClick={(e) => { e.stopPropagation(); handleEdit(form); }}
                           className="text-royal-600 hover:text-royal-900 p-1 rounded-md hover:bg-royal-50 transition-colors"
                           title="Edit form"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleCopyLink(form)}
+                          onClick={(e) => { e.stopPropagation(); handleCopyLink(form); }}
                           className={`p-1 rounded-md transition-colors ${
                             copiedForms.has(form._id)
                               ? 'text-green-600 bg-green-50'
@@ -334,16 +418,16 @@ const FeedbackFormManagement = () => {
                           )}
                         </button>
                         <button
-                          onClick={() => handleDuplicate(form)}
+                          onClick={(e) => { e.stopPropagation(); handleDuplicate(form); }}
                           className="text-green-600 hover:text-green-900 p-1 rounded-md hover:bg-green-50 transition-colors"
                           title="Duplicate form"
                         >
                           <Copy className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => handleDelete(form)}
+                          onClick={(e) => { e.stopPropagation(); handleDelete(form); }}
                           className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
-                          title="Delete form"
+                          title="Archive form"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -431,11 +515,71 @@ const FeedbackFormManagement = () => {
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
-        title="Delete Feedback Form"
-        message={`Are you sure you want to delete "${selectedForm?.formName}"? This action cannot be undone and will affect all associated responses.`}
-        confirmText="Delete Form"
+        title="Archive Feedback Form"
+        message={`Are you sure you want to archive "${selectedForm?.formName}"? This will make it inactive and prevent new submissions.`}
+        confirmText="Archive"
         loading={false}
       />
+
+      {selectedForm && (
+        <ActivationHistoryModal
+          isOpen={showActivationHistoryModal}
+          onClose={() => setShowActivationHistoryModal(false)}
+          form={selectedForm}
+        />
+      )}
+
+      <FormAnalyticsModal
+        isOpen={showAnalyticsModal}
+        onClose={() => setShowAnalyticsModal(false)}
+        form={selectedForm}
+        analyticsData={analyticsData}
+        analyticsLoading={analyticsLoading}
+      />
+    </div>
+  );
+};
+
+const ActivationHistoryModal = ({ isOpen, onClose, form }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-lg">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-gray-900">Activation History for {form.formName}</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            <XCircle className="h-6 w-6" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          {form.activationPeriods && form.activationPeriods.length > 0 ? (
+            <ul className="divide-y divide-gray-200">
+              {form.activationPeriods.slice().reverse().map((period, index) => (
+                <li key={index} className="py-3">
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm">
+                      <p className="font-medium text-gray-900">
+                        {period.end ? 'Deactivated' : 'Active'}
+                      </p>
+                      <p className="text-gray-500">
+                        {new Date(period.start).toLocaleString()} - {period.end ? new Date(period.end).toLocaleString() : 'Now'}
+                      </p>
+                    </div>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                      period.end ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                    }`}>
+                      Period {form.activationPeriods.length - index}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-gray-500">No activation history found for this form.</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

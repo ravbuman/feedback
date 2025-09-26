@@ -6,6 +6,7 @@ const Faculty = require('../models/Faculty');
 const Course = require('../models/Course');
 const Subject = require('../models/Subject');
 const FeedbackForm = require('../models/FeedbackForm');
+const Response = require('../models/Response');
 
 // Admin Authentication
 const login = async (req, res) => {
@@ -351,7 +352,7 @@ const deleteSubject = async (req, res) => {
 // Feedback Form Management
 const getAllFeedbackForms = async (req, res) => {
   try {
-    const forms = await FeedbackForm.find({ isActive: true }).sort({ createdAt: -1 });
+    const forms = await FeedbackForm.find({}).sort({ createdAt: -1 });
     res.json(forms);
   } catch (error) {
     console.error('Get feedback forms error:', error);
@@ -403,7 +404,7 @@ const deleteFeedbackForm = async (req, res) => {
   try {
     const form = await FeedbackForm.findByIdAndUpdate(
       req.params.id,
-      { isActive: false },
+      { isActive: false }, // Keep it as soft delete
       { new: true }
     );
 
@@ -411,12 +412,134 @@ const deleteFeedbackForm = async (req, res) => {
       return res.status(404).json({ message: 'Feedback form not found' });
     }
 
-    res.json({ message: 'Feedback form deactivated successfully' });
+    res.json({ message: 'Feedback form archived successfully' });
   } catch (error) {
     console.error('Delete feedback form error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 };
+
+// Activate a feedback form
+const activateFeedbackForm = async (req, res) => {
+  try {
+    const form = await FeedbackForm.findById(req.params.id);
+    if (!form) {
+      return res.status(404).json({ message: 'Feedback form not found' });
+    }
+
+    if (form.isActive) {
+      return res.status(400).json({ message: 'Form is already active' });
+    }
+
+    form.isActive = true;
+    form.activationPeriods.push({ start: new Date() });
+
+    await form.save();
+    res.json(form);
+  } catch (error) {
+    console.error('Activate feedback form error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Deactivate a feedback form
+const deactivateFeedbackForm = async (req, res) => {
+  try {
+    const form = await FeedbackForm.findById(req.params.id);
+    if (!form) {
+      return res.status(404).json({ message: 'Feedback form not found' });
+    }
+
+    if (!form.isActive) {
+      return res.status(400).json({ message: 'Form is already deactivated' });
+    }
+
+    form.isActive = false;
+    const lastActivation = form.activationPeriods[form.activationPeriods.length - 1];
+    if (lastActivation && !lastActivation.end) {
+      lastActivation.end = new Date();
+    }
+
+    await form.save();
+    res.json(form);
+  } catch (error) {
+    console.error('Deactivate feedback form error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const getFormAnalytics = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const form = await FeedbackForm.findById(id);
+    if (!form) {
+      return res.status(404).json({ message: 'Feedback form not found' });
+    }
+
+    const responses = await Response.find({ form: id });
+
+    const totalResponses = responses.length;
+
+    const questionAnalytics = form.questions.map(question => {
+      const questionId = question._id.toString();
+      const relevantAnswers = responses.map(r => r.answers.find(a => a.question.toString() === questionId)).filter(Boolean);
+
+      switch (question.questionType) {
+        case 'multiple-choice': {
+          const optionCounts = question.options.reduce((acc, option) => {
+            acc[option] = 0;
+            return acc;
+          }, {});
+          relevantAnswers.forEach(answer => {
+            if (answer.answer in optionCounts) {
+              optionCounts[answer.answer]++;
+            }
+          });
+          return {
+            questionText: question.questionText,
+            type: 'multiple-choice',
+            data: Object.entries(optionCounts).map(([option, count]) => ({ option, count })),
+          };
+        }
+        case 'rating': {
+          const ratings = relevantAnswers.map(a => parseInt(a.answer, 10)).filter(n => !isNaN(n));
+          const average = ratings.length > 0 ? ratings.reduce((sum, val) => sum + val, 0) / ratings.length : 0;
+          return {
+            questionText: question.questionText,
+            type: 'rating',
+            average,
+            count: ratings.length,
+          };
+        }
+        case 'open-ended': {
+          const answers = relevantAnswers.map(a => a.answer).filter(Boolean);
+          return {
+            questionText: question.questionText,
+            type: 'open-ended',
+            answers,
+          };
+        }
+        default:
+          return {
+            questionText: question.questionText,
+            type: question.questionType,
+            data: [],
+          };
+      }
+    });
+
+    res.json({
+      totalResponses,
+      questionAnalytics,
+    });
+
+  } catch (error) {
+    console.error('Get form analytics error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 
 module.exports = {
   login,
@@ -436,5 +559,8 @@ module.exports = {
   getAllFeedbackForms,
   createFeedbackForm,
   updateFeedbackForm,
-  deleteFeedbackForm
+  deleteFeedbackForm,
+  activateFeedbackForm,
+  deactivateFeedbackForm,
+  getFormAnalytics
 };

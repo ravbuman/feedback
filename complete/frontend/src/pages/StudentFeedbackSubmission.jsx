@@ -1,21 +1,23 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { 
-  User, 
-  Phone, 
-  Hash, 
-  GraduationCap, 
-  Calendar, 
-  BookOpen, 
-  FileText, 
+import {
+  User,
+  Phone,
+  Hash,
+  GraduationCap,
+  Calendar,
+  BookOpen,
+  FileText,
   CheckCircle,
   Loader2,
   AlertTriangle,
   ArrowRight,
   ArrowLeft,
   Star,
-  Hash as HashIcon
+  Hash as HashIcon,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { studentAPI } from '../services/api';
 import toast from 'react-hot-toast';
@@ -29,17 +31,14 @@ const StudentFeedbackSubmission = () => {
   const [feedbackForm, setFeedbackForm] = useState(null);
   const [courses, setCourses] = useState([]);
   const [subjects, setSubjects] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState('');
-  const [selectedYear, setSelectedYear] = useState('');
-  const [selectedSemester, setSelectedSemester] = useState('');
   const [responses, setResponses] = useState({});
+  const [activeSubject, setActiveSubject] = useState(null); // accordion state
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    watch,
-    setValue
+    watch
   } = useForm({
     defaultValues: {
       studentName: '',
@@ -72,7 +71,7 @@ const StudentFeedbackSubmission = () => {
         studentAPI.getFeedbackForm(formId),
         studentAPI.getCourses()
       ]);
-      
+
       setFeedbackForm(formRes.data);
       setCourses(coursesRes.data);
     } catch (error) {
@@ -130,15 +129,12 @@ const StudentFeedbackSubmission = () => {
           year: parseInt(data.year),
           semester: parseInt(data.semester)
         },
-        responses: Object.keys(responses).map(subjectId => {
-          // Convert responses[subjectId] object to array format with question details
+        subjectResponses: Object.keys(responses).map(subjectId => {
           const subjectResponses = responses[subjectId];
           const answersWithQuestions = [];
-          
-          // Get the maximum question index
+
           const maxIndex = Math.max(...Object.keys(subjectResponses).map(Number));
-          
-          // Create array with answers and question details in correct order
+
           for (let i = 0; i <= maxIndex; i++) {
             if (subjectResponses[i] !== undefined) {
               answersWithQuestions.push({
@@ -153,7 +149,7 @@ const StudentFeedbackSubmission = () => {
               });
             }
           }
-          
+
           return {
             subject: subjectId,
             form: formId,
@@ -162,11 +158,7 @@ const StudentFeedbackSubmission = () => {
         })
       };
 
-      console.log('=== FRONTEND SUBMISSION DEBUG ===');
-      console.log('Submission data:', JSON.stringify(submissionData, null, 2));
-      console.log('Responses object:', responses);
-
-      await studentAPI.submitResponses(submissionData);
+      await studentAPI.submitFeedback(submissionData);
       toast.success('Feedback submitted successfully! Thank you for your input.');
       navigate('/');
     } catch (error) {
@@ -192,7 +184,6 @@ const StudentFeedbackSubmission = () => {
             required={question.isRequired}
           />
         );
-
       case 'textarea':
         return (
           <textarea
@@ -204,7 +195,6 @@ const StudentFeedbackSubmission = () => {
             required={question.isRequired}
           />
         );
-
       case 'scale':
         return (
           <div className="space-y-2">
@@ -212,7 +202,7 @@ const StudentFeedbackSubmission = () => {
               <span>{question.scaleMin}</span>
               <span>{question.scaleMax}</span>
             </div>
-            <div className="flex space-x-2">
+            <div className="flex flex-wrap gap-2">
               {Array.from({ length: question.scaleMax - question.scaleMin + 1 }, (_, i) => {
                 const value = question.scaleMin + i;
                 return (
@@ -233,7 +223,6 @@ const StudentFeedbackSubmission = () => {
             </div>
           </div>
         );
-
       case 'yesno':
         return (
           <div className="flex space-x-4">
@@ -263,7 +252,6 @@ const StudentFeedbackSubmission = () => {
             </label>
           </div>
         );
-
       case 'multiplechoice':
         return (
           <div className="space-y-2">
@@ -283,7 +271,6 @@ const StudentFeedbackSubmission = () => {
             ))}
           </div>
         );
-
       default:
         return <div className="text-gray-500">Unsupported question type</div>;
     }
@@ -336,29 +323,34 @@ const StudentFeedbackSubmission = () => {
         </div>
 
         {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex items-center justify-center space-x-8">
+        <div className="mb-8 overflow-x-auto">
+          <div className="flex items-center justify-center space-x-4 sm:space-x-8 min-w-max">
             {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center">
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-                  currentStep >= step 
-                    ? 'bg-royal-600 text-white' 
-                    : 'bg-gray-300 text-gray-600'
-                }`}>
+              <div key={step} className="flex items-center flex-shrink-0">
+                <div
+                  className={`flex items-center justify-center w-6 h-6 sm:w-8 sm:h-8 rounded-full ${currentStep >= step ? 'bg-royal-600 text-white' : 'bg-gray-300 text-gray-600'
+                    }`}
+                >
                   {step}
                 </div>
-                <span className={`ml-2 text-sm font-medium ${
-                  currentStep >= step ? 'text-royal-600' : 'text-gray-500'
-                }`}>
-                  {step === 1 ? 'Student Info' : step === 2 ? 'Course Selection' : 'Feedback Forms'}
+                <span
+                  className={`ml-2 text-xs sm:text-sm font-medium ${currentStep >= step ? 'text-royal-600' : 'text-gray-500'
+                    }`}
+                >
+                  {step === 1
+                    ? 'Student Info'
+                    : step === 2
+                      ? 'Course Selection'
+                      : 'Feedback Forms'}
                 </span>
                 {step < 3 && (
-                  <ArrowRight className="ml-4 h-4 w-4 text-gray-400" />
+                  <ArrowRight className="ml-2 sm:ml-4 h-3 sm:h-4 w-3 sm:w-4 text-gray-400" />
                 )}
               </div>
             ))}
           </div>
         </div>
+
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
           {/* Step 1: Student Information */}
@@ -510,75 +502,90 @@ const StudentFeedbackSubmission = () => {
             </div>
           )}
 
-          {/* Step 3: Feedback Forms */}
+          {/* Step 3: Feedback Forms with Accordion */}
           {currentStep === 3 && (
             <div className="space-y-6">
               <div className="bg-white rounded-xl shadow-lg p-6">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Feedback Forms</h2>
                 <p className="text-gray-600 mb-6">
-                  Please fill out the feedback form for each subject. All forms must be completed before submission.
+                  Please fill out the feedback form for each subject. Click on a subject to open its form.
                 </p>
               </div>
 
-              {subjects.map((subject, subjectIndex) => (
-                <div key={subject._id} className="bg-white rounded-xl shadow-lg p-6">
-                  <div className="flex items-center mb-6">
-                    <BookOpen className="h-6 w-6 text-purple-600 mr-3" />
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">{subject.subjectName}</h3>
-                      {subject.faculty && (
-                        <p className="text-sm text-gray-500">
-                          Faculty: {typeof subject.faculty === 'object' ? subject.faculty.name : 'Loading...'}
-                        </p>
-                      )}
+              {subjects.map((subject) => (
+                <div key={subject._id} className="bg-white rounded-xl shadow-lg overflow-hidden">
+                  {/* Header */}
+                  <button
+                    type="button"
+                    onClick={() => setActiveSubject(prev => prev === subject._id ? null : subject._id)}
+                    className="w-full flex justify-between items-center p-4 text-left hover:bg-gray-50 focus:outline-none"
+                  >
+                    <div className="flex items-center">
+                      <BookOpen className="h-6 w-6 text-purple-600 mr-3" />
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">{subject.subjectName}</h3>
+                        {subject.faculty && (
+                          <p className="text-sm text-gray-500">
+                            Faculty: {typeof subject.faculty === 'object' ? subject.faculty.name : 'Loading...'}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                    {activeSubject === subject._id ? (
+                      <ChevronUp className="h-5 w-5 text-gray-500" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-gray-500" />
+                    )}
+                  </button>
 
-                  <div className="space-y-6">
-                    {feedbackForm.questions?.map((question, questionIndex) => (
-                      <div key={questionIndex} className="border-l-4 border-royal-200 pl-4">
-                        <div className="flex items-start space-x-3 mb-3">
-                          <div className="flex-shrink-0 mt-1">
-                            {getQuestionIcon(question.questionType)}
-                          </div>
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-900 mb-2">
-                              {question.questionText}
-                              {question.isRequired && (
-                                <span className="text-red-500 ml-1">*</span>
-                              )}
-                            </label>
-                            {renderQuestion(question, questionIndex, subject._id)}
+                  {/* Body */}
+                  {activeSubject === subject._id && (
+                    <div className="p-6 border-t space-y-6">
+                      {feedbackForm.questions?.map((question, questionIndex) => (
+                        <div key={questionIndex} className="border-l-4 border-royal-200 pl-4">
+                          <div className="flex items-start space-x-3 mb-3">
+                            <div className="flex-shrink-0 mt-1">
+                              {getQuestionIcon(question.questionType)}
+                            </div>
+                            <div className="flex-1">
+                              <label className="block text-sm font-medium text-gray-900 mb-2">
+                                {question.questionText}
+                                {question.isRequired && (
+                                  <span className="text-red-500 ml-1">*</span>
+                                )}
+                              </label>
+                              {renderQuestion(question, questionIndex, subject._id)}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
           )}
 
           {/* Navigation Buttons */}
-          <div className="flex justify-between">
+          <div className="flex flex-col sm:flex-row justify-between mt-8 gap-2 sm:gap-0">
             <button
               type="button"
               onClick={() => setCurrentStep(prev => Math.max(1, prev - 1))}
               disabled={currentStep === 1}
-              className="btn btn-outline flex items-center"
+              className="inline-flex items-center px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 text-sm sm:text-base hover:bg-gray-50 transition disabled:opacity-50"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
               Previous
             </button>
 
             <button
               type="submit"
-              className="btn btn-primary flex items-center"
+              className="inline-flex items-center px-4 sm:px-6 py-2 sm:py-2.5 rounded-lg bg-royal-600 text-white font-medium text-sm sm:text-base hover:bg-royal-700 transition disabled:opacity-50 justify-center"
               disabled={submitting || (currentStep === 2 && subjects.length === 0)}
             >
               {submitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-3 w-3 sm:h-4 mr-1 sm:mr-2 animate-spin" />
                   Submitting...
                 </>
               ) : currentStep === 3 ? (
@@ -586,11 +593,12 @@ const StudentFeedbackSubmission = () => {
               ) : (
                 <>
                   Next
-                  <ArrowRight className="h-4 w-4 ml-2" />
+                  <ArrowRight className="h-3 w-3 sm:h-4 ml-1 sm:ml-2" />
                 </>
               )}
             </button>
           </div>
+
         </form>
       </div>
     </div>
