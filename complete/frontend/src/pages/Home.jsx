@@ -15,61 +15,49 @@ import {
   Layers
 } from 'lucide-react';
 import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+import { useState, useEffect } from 'react';
+import api from '../services/api';
 
 const Home = () => {
+  const [health, setHealth] = useState(null);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const checkHealth = async () => {
+      try {
+        const response = await api.get('/health');
+        setHealth(response.data);
+      } catch (err) {
+        setError(err.message);
+      }
+    };
+    checkHealth();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-royal-50">
       {/* Hero Section */}
-      <div className="min-h-screen flex items-center">
+      <div className="min-h-screen flex items-center pt-16 pb-8 lg:pt-0 lg:pb-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Side - Content */}
-            <div className="space-y-8">
+            <div className="space-y-8 order-2 lg:order-none text-center lg:text-left">
               <div className="space-y-6">
-                <div className="flex items-center space-x-3">
-                  <GraduationCap className="h-12 w-12 text-royal-600" />
-                  <h1 className="text-4xl font-bold text-gray-900">
+                <div className="flex items-center justify-center lg:justify-start space-x-3">
+                  <GraduationCap className="h-10 w-10 sm:h-12 sm:w-12 text-royal-600" />
+                  <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
                     PydahSoft
                   </h1>
                 </div>
-                <h2 className="text-5xl font-bold text-gray-900 leading-tight">
+                <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-tight">
                   Student Feedback System
                 </h2>
-                <p className="text-xl text-gray-600 leading-relaxed">
+                <p className="text-lg sm:text-xl text-gray-600 leading-relaxed">
                   A comprehensive platform designed to streamline student feedback collection
                   and management across all subjects and faculty members.
                 </p>
-              </div>
 
-              {/* Why Feedback is Important */}
-              {/* <div className="space-y-4">
-                <h3 className="text-2xl font-semibold text-gray-900">
-                  Why Feedback Matters
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-6 w-6 text-royal-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-gray-700">
-                      <strong>Continuous Improvement:</strong> Regular feedback helps identify
-                      areas for enhancement in teaching methods and course content.
-                    </p>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-6 w-6 text-royal-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-gray-700">
-                      <strong>Student Engagement:</strong> Feedback systems encourage active
-                      participation and create a culture of open communication.
-                    </p>
-                  </div>
-                  <div className="flex items-start space-x-3">
-                    <CheckCircle className="h-6 w-6 text-royal-600 mt-0.5 flex-shrink-0" />
-                    <p className="text-gray-700">
-                      <strong>Quality Assurance:</strong> Systematic feedback collection ensures
-                      consistent quality across all educational programs.
-                    </p>
-                  </div>
-                </div>
-              </div> */}
+              </div>
 
               {/* Admin Login Button */}
               <div className="pt-6">
@@ -84,49 +72,12 @@ const Home = () => {
             </div>
 
             {/* Right Side - Visual Elements */}
-            <div className="relative w-full h-96 lg:h-[500px] lg:w-full flex items-center justify-center">
-              {/* <div className="bg-white rounded-2xl shadow-2xl p-8 border border-gray-100">
-                <div className="space-y-6">
-                  <div className="text-center">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                      System Features
-                    </h3>
-                    <p className="text-gray-600">
-                      Everything you need for effective feedback management
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="flex items-center space-x-4 p-4 bg-royal-50 rounded-lg">
-                      <Users className="h-8 w-8 text-royal-600" />
-                      <div>
-                        <h4 className="font-semibold text-gray-900">Faculty Management</h4>
-                        <p className="text-sm text-gray-600">Manage faculty profiles and assignments</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-4 p-4 bg-royal-50 rounded-lg">
-                      <BookOpen className="h-8 w-8 text-royal-600" />
-                      <div>
-                        <h4 className="font-semibold text-gray-900">Course & Subject Management</h4>
-                        <p className="text-sm text-gray-600">Organize courses, subjects, and semesters</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center space-x-4 p-4 bg-royal-50 rounded-lg">
-                      <BarChart3 className="h-8 w-8 text-royal-600" />
-                      <div>
-                        <h4 className="font-semibold text-gray-900">Analytics & Reports</h4>
-                        <p className="text-sm text-gray-600">Comprehensive insights and reporting</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div> */}
+            <div className="relative w-full h-80 lg:h-[500px] order-1 hidden lg:flex items-center justify-center">
               <DotLottieReact
                 src="https://lottie.host/ed34085d-9f26-4ca0-a3f9-4bbbda695ae3/nL1UbSYj1o.lottie"
                 loop
                 autoplay
+                className="w-full h-full object-contain"
               />
 
 

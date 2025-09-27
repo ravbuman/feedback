@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   FileText, 
   Plus, 
@@ -19,7 +20,8 @@ import {
   Check,
   Power, 
   PowerOff, 
-  History
+  History,
+  ArrowLeft
 } from 'lucide-react';
 import { adminAPI, responseAPI } from '../services/api';
 import CreateFeedbackFormModal from '../components/Modals/CreateFeedbackFormModal';
@@ -44,6 +46,7 @@ const FeedbackFormManagement = () => {
   const [copiedForms, setCopiedForms] = useState(new Set());
   const [analyticsData, setAnalyticsData] = useState(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchForms();
@@ -230,9 +233,18 @@ const FeedbackFormManagement = () => {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Feedback Form Management</h1>
-          <p className="text-gray-600">Create and manage custom feedback forms</p>
+        <div className="flex items-center gap-x-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            title="Go back"
+          >
+            <ArrowLeft className="h-6 w-6 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Feedback Form Management</h1>
+            <p className="text-gray-600">Create and manage custom feedback forms</p>
+          </div>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}

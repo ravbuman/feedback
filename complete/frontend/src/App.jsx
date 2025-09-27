@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -15,6 +15,89 @@ import AssignFaculty from './pages/AssignFaculty';
 import FeedbackFormManagement from './pages/FeedbackFormManagement';
 import ResponseAnalytics from './pages/ResponseAnalytics';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
+import GuestRoute from './components/Auth/GuestRoute';
+
+function AppContent() {
+  const location = useLocation();
+  const isAdminLogin = location.pathname === '/admin/login';
+
+  return (
+    <div className={`min-h-screen ${!isAdminLogin ? 'bg-gray-50' : ''}`}>
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            iconTheme: {
+              primary: '#22c55e',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            duration: 5000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/" element={<GuestRoute><Home /></GuestRoute>} />
+        <Route path="/feedback/:formId" element={<StudentFeedbackSubmission />} />
+        <Route path="/admin/login" element={<GuestRoute><AdminLogin /></GuestRoute>} />
+
+        {/* Protected Admin Routes */}
+        <Route path="/admin" element={
+          <ProtectedRoute>
+            <Layout><AdminDashboard /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/faculty" element={
+          <ProtectedRoute>
+            <Layout><FacultyManagement /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/courses" element={
+          <ProtectedRoute>
+            <Layout><CourseManagement /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/subjects" element={
+          <ProtectedRoute>
+            <Layout><SubjectManagement /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/assign-faculty" element={
+          <ProtectedRoute>
+            <Layout><AssignFaculty /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/feedback-forms" element={
+          <ProtectedRoute>
+            <Layout><FeedbackFormManagement /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/analytics" element={
+          <ProtectedRoute>
+            <Layout><ResponseAnalytics /></Layout>
+          </ProtectedRoute>
+        } />
+        <Route path="/admin/*" element={
+          <ProtectedRoute>
+            <Layout><AdminDashboard /></Layout>
+          </ProtectedRoute>
+        } />
+      </Routes>
+    </div>
+  );
+}
 
 function App() {
   return (
@@ -26,80 +109,7 @@ function App() {
             v7_relativeSplatPath: true,
           }}
         >
-          <div className="min-h-screen bg-gray-50">
-            <Toaster
-              position="top-right"
-              toastOptions={{
-                duration: 4000,
-                style: {
-                  background: '#363636',
-                  color: '#fff',
-                },
-                success: {
-                  duration: 3000,
-                  iconTheme: {
-                    primary: '#22c55e',
-                    secondary: '#fff',
-                  },
-                },
-                error: {
-                  duration: 5000,
-                  iconTheme: {
-                    primary: '#ef4444',
-                    secondary: '#fff',
-                  },
-                },
-              }}
-            />
-            <Routes>
-              {/* Public Routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/feedback/:formId" element={<StudentFeedbackSubmission />} />
-              <Route path="/admin/login" element={<AdminLogin />} />
-
-              {/* Protected Admin Routes */}
-              <Route path="/admin" element={
-                <ProtectedRoute>
-                  <Layout><AdminDashboard /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/faculty" element={
-                <ProtectedRoute>
-                  <Layout><FacultyManagement /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/courses" element={
-                <ProtectedRoute>
-                  <Layout><CourseManagement /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/subjects" element={
-                <ProtectedRoute>
-                  <Layout><SubjectManagement /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/assign-faculty" element={
-                <ProtectedRoute>
-                  <Layout><AssignFaculty /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/feedback-forms" element={
-                <ProtectedRoute>
-                  <Layout><FeedbackFormManagement /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/analytics" element={
-                <ProtectedRoute>
-                  <Layout><ResponseAnalytics /></Layout>
-                </ProtectedRoute>
-              } />
-              <Route path="/admin/*" element={
-                <ProtectedRoute>
-                  <Layout><AdminDashboard /></Layout>
-                </ProtectedRoute>
-              } />
-            </Routes>
-          </div>
+          <AppContent />
         </Router>
       </AuthProvider>
     </ErrorBoundary>

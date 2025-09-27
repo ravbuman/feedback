@@ -313,7 +313,14 @@ const StudentFeedbackSubmission = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <button
+          onClick={() => navigate(-1)}
+          className="absolute top-0 left-0 p-2 rounded-full hover:bg-gray-100 transition-colors"
+          title="Go back"
+        >
+          <ArrowLeft className="h-6 w-6 text-gray-600" />
+        </button>
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">{feedbackForm.formName}</h1>
