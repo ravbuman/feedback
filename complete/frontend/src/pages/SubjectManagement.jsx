@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  BookOpen, 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit2, 
-  Trash2, 
-  GraduationCap, 
+import {
+  BookOpen,
+  Plus,
+  Search,
+  Filter,
+  Edit2,
+  Trash2,
+  GraduationCap,
   User,
   Calendar,
   Hash,
@@ -16,10 +16,11 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { adminAPI } from '../services/api';
+import toast from 'react-hot-toast';
 import CreateSubjectModal from '../components/Modals/CreateSubjectModal';
 import EditSubjectModal from '../components/Modals/EditSubjectModal';
-import DeleteConfirmModal from '../components/Modals/DeleteConfirmModal';
-import toast from 'react-hot-toast';
+import DeleteConfirmationModal from '../components/Modals/DeleteConfirmModal';
+import Loader from '../components/Loader';
 
 const SubjectManagement = () => {
   const [subjects, setSubjects] = useState([]);
@@ -45,8 +46,8 @@ const SubjectManagement = () => {
         adminAPI.getCourses(),
         adminAPI.getFaculty()
       ]);
-      
-      
+
+
       setSubjects(subjectsRes.data);
       setCourses(coursesRes.data);
       setFaculty(facultyRes.data);
@@ -64,7 +65,7 @@ const SubjectManagement = () => {
   };
 
   const handleEditSuccess = (updatedSubject) => {
-    setSubjects(prev => 
+    setSubjects(prev =>
       prev.map(s => s._id === updatedSubject._id ? updatedSubject : s)
     );
     toast.success('Subject updated successfully!');
@@ -121,17 +122,13 @@ const SubjectManagement = () => {
   // Filter and search subjects
   const filteredSubjects = subjects.filter(s => {
     const matchesSearch = s.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         getCourseName(s.course).toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         getFacultyName(s.faculty).toLowerCase().includes(searchTerm.toLowerCase());
+      getCourseName(s.course).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getFacultyName(s.faculty).toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-royal-600"></div>
-      </div>
-    );
+    return <Loader />;
   }
 
   return (
@@ -181,7 +178,7 @@ const SubjectManagement = () => {
             <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No subjects found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm 
+              {searchTerm
                 ? 'Try adjusting your search criteria.'
                 : 'Get started by adding a new subject.'
               }
@@ -274,11 +271,10 @@ const SubjectManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        subject.isActive !== false 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${subject.isActive !== false
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}>
                         {subject.isActive !== false ? 'Active' : 'Inactive'}
                       </span>
                     </td>
@@ -374,7 +370,7 @@ const SubjectManagement = () => {
         faculty={faculty}
       />
 
-      <DeleteConfirmModal
+      <DeleteConfirmationModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}

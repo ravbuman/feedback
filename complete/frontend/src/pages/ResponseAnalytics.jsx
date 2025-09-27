@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import FacultyAnalytics from '../components/analytics/FacultyAnalytics';
 import QuestionFacultyAnalytics from '../components/analytics/QuestionFacultyAnalytics';
+import Loader from '../components/Loader';
 
 const ResponseAnalytics = () => {
   const [analytics, setAnalytics] = useState(null);
@@ -156,14 +157,7 @@ const ResponseAnalytics = () => {
   };
 
   if (loading && !analytics) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-royal-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading analytics...</p>
-        </div>
-      </div>
-    );
+    return <Loader />;
   }
 
   return (

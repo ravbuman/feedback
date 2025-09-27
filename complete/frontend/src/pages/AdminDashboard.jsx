@@ -16,6 +16,7 @@ import {
 import { responseAPI } from '../services/api';
 import CreateFacultyModal from '../components/Modals/CreateFacultyModal';
 import toast from 'react-hot-toast';
+import Loader from '../components/Loader';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState({
@@ -176,17 +177,13 @@ const AdminDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-20 w-20 border-b-2 border-royal-600"></div>
-      </div>
-    );
+    return <Loader />;
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="rounded-2xl pr-8 pl-8 pt-5 pb-1">
+      <div className="rounded-2xl p-6">
         <div className="">
           <h2 className="text-2xl font-bold text-gray-900">Welcome to Admin Dashboard</h2>
           <p className="text-gray-600">Manage your feedback forms and responses</p>
@@ -194,9 +191,9 @@ const AdminDashboard = () => {
       </div>
 
       {/* Content */}
-      <main className="flex-1 overflow-y-auto p-6 space-y-8">
+      <main className="flex-1 overflow-y-auto p-6 space-y-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 mb-6">
           {statCards.map((stat) => (
             <div
               key={stat.name}
@@ -216,13 +213,13 @@ const AdminDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+        <div className="bg-white rounded-2xl shadow-lg p-6 border border-gray-100">
           <div className="mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Quick Actions</h2>
             <p className="text-gray-600">Manage your system with these quick actions</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {quickActions.map((action, index) => (
               <button
                 key={index}

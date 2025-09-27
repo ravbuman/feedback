@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import Layout from './components/Layout/Layout';
 import Home from './pages/Home';
@@ -16,10 +16,16 @@ import FeedbackFormManagement from './pages/FeedbackFormManagement';
 import ResponseAnalytics from './pages/ResponseAnalytics';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 import GuestRoute from './components/Auth/GuestRoute';
+import Loader from './components/Loader';
 
 function AppContent() {
   const location = useLocation();
+  const { loading } = useAuth();
   const isAdminLogin = location.pathname === '/admin/login';
+
+  if (loading) {
+    return <Loader />;
+  }
 
   return (
     <div className={`min-h-screen ${!isAdminLogin ? 'bg-gray-50' : ''}`}>
