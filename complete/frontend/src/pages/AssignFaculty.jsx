@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   UserPlus, 
   Search, 
@@ -12,7 +13,8 @@ import {
   AlertTriangle,
   User,
   Calendar,
-  Hash
+  Hash,
+  ArrowLeft
 } from 'lucide-react';
 import { adminAPI } from '../services/api';
 import AssignFacultyModal from '../components/Modals/AssignFacultyModal';
@@ -27,6 +29,7 @@ const AssignFaculty = () => {
   const [filterStatus, setFilterStatus] = useState('all'); // all, assigned, unassigned
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -111,9 +114,18 @@ const AssignFaculty = () => {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Assign Faculty</h1>
-          <p className="text-gray-600">Assign faculty members to subjects</p>
+        <div className="flex items-center gap-x-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            title="Go back"
+          >
+            <ArrowLeft className="h-6 w-6 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Assign Faculty</h1>
+            <p className="text-gray-600">Assign faculty members to subjects</p>
+          </div>
         </div>
         <div className="flex items-center space-x-4">
           <div className="text-sm text-gray-500">

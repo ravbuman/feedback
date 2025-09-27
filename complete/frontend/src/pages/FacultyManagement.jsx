@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
   Plus, 
@@ -10,7 +11,8 @@ import {
   Briefcase, 
   Building,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  ArrowLeft
 } from 'lucide-react';
 import { adminAPI } from '../services/api';
 import CreateFacultyModal from '../components/Modals/CreateFacultyModal';
@@ -27,6 +29,7 @@ const FacultyManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedFaculty, setSelectedFaculty] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchFaculty();
@@ -108,9 +111,18 @@ const FacultyManagement = () => {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Faculty Management</h1>
-          <p className="text-gray-600">Manage faculty members and their information</p>
+        <div className="flex items-center gap-x-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            title="Go back"
+          >
+            <ArrowLeft className="h-6 w-6 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Faculty Management</h1>
+            <p className="text-gray-600">Manage faculty members and their information</p>
+          </div>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}

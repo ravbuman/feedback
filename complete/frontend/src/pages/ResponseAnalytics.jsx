@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { responseAPI, adminAPI } from '../services/api';
 import toast from 'react-hot-toast';
 import {
@@ -8,6 +9,7 @@ import {
   Loader2,
   PieChart as PieChartIcon,
   List,
+  ArrowLeft
 } from 'lucide-react';
 import FacultyAnalytics from '../components/analytics/FacultyAnalytics';
 import QuestionFacultyAnalytics from '../components/analytics/QuestionFacultyAnalytics';
@@ -30,6 +32,7 @@ const ResponseAnalytics = () => {
     subject: '',
     activationPeriod: ''
   });
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchInitialData();
@@ -166,13 +169,22 @@ const ResponseAnalytics = () => {
   return (
     <div className="container mx-auto p-4 md:p-6">
       {/* Header */}
-      <div className="mb-6 md:mb-8 flex flex-col md:flex-row items-start md:items-center justify-between space-y-4 md:space-y-0">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <BarChart3 className="h-8 w-8 text-royal-600 mr-3" />
-            Response Analytics
-          </h1>
-          <p className="text-gray-600 mt-2">Analyze feedback responses and generate insights</p>
+      <div className="mb-6 md:mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-x-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            title="Go back"
+          >
+            <ArrowLeft className="h-6 w-6 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+              <BarChart3 className="h-8 w-8 text-royal-600 mr-3" />
+              Response Analytics
+            </h1>
+            <p className="text-gray-600 mt-2">Analyze feedback responses and generate insights</p>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 md:gap-4">

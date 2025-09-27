@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   BookOpen, 
   Plus, 
@@ -11,7 +12,8 @@ import {
   Calendar,
   Hash,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  ArrowLeft
 } from 'lucide-react';
 import { adminAPI } from '../services/api';
 import CreateSubjectModal from '../components/Modals/CreateSubjectModal';
@@ -29,6 +31,7 @@ const SubjectManagement = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -135,9 +138,18 @@ const SubjectManagement = () => {
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Subject Management</h1>
-          <p className="text-gray-600">Manage subjects, their courses, and assigned faculty</p>
+        <div className="flex items-center gap-x-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            title="Go back"
+          >
+            <ArrowLeft className="h-6 w-6 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">Subject Management</h1>
+            <p className="text-gray-600">Manage subjects, their courses, and assigned faculty</p>
+          </div>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
