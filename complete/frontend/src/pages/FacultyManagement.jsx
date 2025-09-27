@@ -1,16 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit2, 
-  Trash2, 
-  Phone, 
-  Briefcase, 
+import {
+  Users,
+  Plus,
+  Search,
+  Filter,
+  Edit2,
+  Trash2,
+  Phone,
+  Briefcase,
   Building,
-  Loader2,
   AlertTriangle,
   ArrowLeft
 } from 'lucide-react';
@@ -19,6 +18,8 @@ import CreateFacultyModal from '../components/Modals/CreateFacultyModal';
 import EditFacultyModal from '../components/Modals/EditFacultyModal';
 import DeleteConfirmModal from '../components/Modals/DeleteConfirmModal';
 import toast from 'react-hot-toast';
+import Loader from '../components/Loader';
+
 
 const FacultyManagement = () => {
   const [faculty, setFaculty] = useState([]);
@@ -54,7 +55,7 @@ const FacultyManagement = () => {
   };
 
   const handleEditSuccess = (updatedFaculty) => {
-    setFaculty(prev => 
+    setFaculty(prev =>
       prev.map(f => f._id === updatedFaculty._id ? updatedFaculty : f)
     );
     toast.success('Faculty updated successfully!');
@@ -90,8 +91,8 @@ const FacultyManagement = () => {
   // Filter and search faculty
   const filteredFaculty = faculty.filter(f => {
     const matchesSearch = f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         f.phoneNumber.includes(searchTerm) ||
-                         f.designation.toLowerCase().includes(searchTerm.toLowerCase());
+      f.phoneNumber.includes(searchTerm) ||
+      f.designation.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = !filterDepartment || f.department === filterDepartment;
     return matchesSearch && matchesDepartment;
   });
@@ -100,15 +101,11 @@ const FacultyManagement = () => {
   const departments = [...new Set(faculty.map(f => f.department))].sort();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-royal-600"></div>
-      </div>
-    );
+    return <Loader />;
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-6 bg-gray-50 min-h-screen space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-x-4">
@@ -135,26 +132,26 @@ const FacultyManagement = () => {
 
       {/* Search and Filter */}
       <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
               placeholder="Search faculty by name, phone, or designation..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="input pl-10"
+              className="input pl-12"
             />
           </div>
 
           {/* Department Filter */}
           <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <select
               value={filterDepartment}
               onChange={(e) => setFilterDepartment(e.target.value)}
-              className="input pl-10"
+              className="input pl-12"
             >
               <option value="">All Departments</option>
               {departments.map(dept => (
@@ -172,7 +169,7 @@ const FacultyManagement = () => {
             <Users className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No faculty found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || filterDepartment 
+              {searchTerm || filterDepartment
                 ? 'Try adjusting your search or filter criteria.'
                 : 'Get started by adding a new faculty member.'
               }

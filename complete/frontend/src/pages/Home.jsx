@@ -146,7 +146,7 @@ const Home = () => {
       </section>
 
       {/* Testimonials */}
-      <section className="py-20 bg-royal-50">
+      {/* <section className="py-20 bg-royal-50">
         <div className="max-w-6xl mx-auto px-6 text-center space-y-12">
           <h2 className="text-3xl font-bold text-gray-900">What People Say</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -165,10 +165,10 @@ const Home = () => {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Final CTA */}
-      <section className="py-20 bg-white text-center">
+      <section className="py-20 bg-royal-50 text-center">
         <div className="max-w-3xl mx-auto space-y-6">
           <h2 className="text-4xl font-bold text-gray-900">Ready to Get Started?</h2>
           <p className="text-lg text-gray-600">

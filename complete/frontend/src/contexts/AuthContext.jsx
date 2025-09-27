@@ -1,5 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, useMemo, useRef } from 'react';
 import { authAPI } from '../services/api';
+import Loader from '../components/Loader';
 
 const AuthContext = createContext(undefined);
 
@@ -95,19 +96,19 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await authAPI.login(credentials);
       const { token, admin } = response.data;
-      
+
       localStorage.setItem('adminToken', token);
       dispatch({
         type: 'LOGIN_SUCCESS',
         payload: { user: admin, token },
       });
-      
+
       return { success: true };
     } catch (error) {
       dispatch({ type: 'LOGIN_FAILURE' });
-      return { 
-        success: false, 
-        error: error.response?.data?.message || 'Login failed' 
+      return {
+        success: false,
+        error: error.response?.data?.message || 'Login failed'
       };
     }
   };
@@ -125,11 +126,7 @@ export const AuthProvider = ({ children }) => {
 
   // Don't render children until context is properly initialized
   if (!isInitialized.current && state.loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-royal-600"></div>
-      </div>
-    );
+    return <Loader />;
   }
 
   return (

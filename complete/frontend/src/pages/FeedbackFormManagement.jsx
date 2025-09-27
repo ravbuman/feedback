@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FileText, 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit2, 
-  Trash2, 
+import {
+  FileText,
+  Plus,
+  Search,
+  Filter,
+  Edit2,
+  Trash2,
   Eye,
   Copy,
+  BarChart2,
   BarChart3,
   Users,
   Calendar,
@@ -18,18 +19,19 @@ import {
   XCircle,
   Link,
   Check,
-  Power, 
-  PowerOff, 
+  Power,
+  PowerOff,
   History,
   ArrowLeft
 } from 'lucide-react';
 import { adminAPI, responseAPI } from '../services/api';
+import toast from 'react-hot-toast';
 import CreateFeedbackFormModal from '../components/Modals/CreateFeedbackFormModal';
 import EditFeedbackFormModal from '../components/Modals/EditFeedbackFormModal';
-import ViewFeedbackFormModal from '../components/Modals/ViewFeedbackFormModal';
 import DeleteConfirmModal from '../components/Modals/DeleteConfirmModal';
+import ViewFeedbackFormModal from '../components/Modals/ViewFeedbackFormModal';
 import FormAnalyticsModal from '../components/Modals/FormAnalyticsModal';
-import toast from 'react-hot-toast';
+import Loader from '../components/Loader';
 
 const FeedbackFormManagement = () => {
   const [forms, setForms] = useState([]);
@@ -65,6 +67,10 @@ const FeedbackFormManagement = () => {
     }
   };
 
+  if (loading) {
+    return <Loader />;
+  }
+
   const handleAnalyticsClick = async (form) => {
     setSelectedForm(form);
     setShowAnalyticsModal(true);
@@ -75,7 +81,7 @@ const FeedbackFormManagement = () => {
         responseAPI.getQuestionAnalytics(params),
         responseAPI.getFacultyQuestionAnalytics(params)
       ]);
-      
+
       setAnalyticsData({
         analytics: analyticsRes.data,
         facultyAnalytics: facultyAnalyticsRes.data || []
@@ -94,7 +100,7 @@ const FeedbackFormManagement = () => {
   };
 
   const handleEditSuccess = (updatedForm) => {
-    setForms(prev => 
+    setForms(prev =>
       prev.map(f => f._id === updatedForm._id ? updatedForm : f)
     );
     toast.success('Feedback form updated successfully!');
@@ -106,7 +112,7 @@ const FeedbackFormManagement = () => {
   };
 
   const handleActivation = async (form, action) => {
-    const apiCall = action === 'activate' 
+    const apiCall = action === 'activate'
       ? adminAPI.activateFeedbackForm
       : adminAPI.deactivateFeedbackForm;
     const toastMessage = action === 'activate'
@@ -115,7 +121,7 @@ const FeedbackFormManagement = () => {
 
     try {
       const response = await apiCall(form._id);
-      setForms(prev => 
+      setForms(prev =>
         prev.map(f => f._id === form._id ? response.data : f)
       );
       toast.success(toastMessage);
@@ -159,7 +165,7 @@ const FeedbackFormManagement = () => {
           scaleMax: q.scaleMax
         }))
       };
-      
+
       const response = await adminAPI.createFeedbackForm(duplicateData);
       setForms(prev => [response.data, ...prev]);
       toast.success('Feedback form duplicated successfully!');
@@ -173,10 +179,10 @@ const FeedbackFormManagement = () => {
     try {
       const formUrl = `${window.location.origin}/feedback/${form._id}`;
       await navigator.clipboard.writeText(formUrl);
-      
+
       // Add to copied set
       setCopiedForms(prev => new Set([...prev, form._id]));
-      
+
       // Remove from copied set after 2 seconds
       setTimeout(() => {
         setCopiedForms(prev => {
@@ -185,7 +191,7 @@ const FeedbackFormManagement = () => {
           return newSet;
         });
       }, 2000);
-      
+
       toast.success('Form link copied to clipboard!');
     } catch (error) {
       console.error('Error copying link:', error);
@@ -208,12 +214,12 @@ const FeedbackFormManagement = () => {
   // Filter and search forms
   const filteredForms = forms.filter(f => {
     const matchesSearch = f.formName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (f.description && f.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesFilter = filterStatus === 'all' || 
-                         (filterStatus === 'active' && f.isActive) ||
-                         (filterStatus === 'deactivated' && !f.isActive);
-    
+      (f.description && f.description.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const matchesFilter = filterStatus === 'all' ||
+      (filterStatus === 'active' && f.isActive) ||
+      (filterStatus === 'deactivated' && !f.isActive);
+
     return matchesSearch && matchesFilter;
   });
 
@@ -289,7 +295,7 @@ const FeedbackFormManagement = () => {
             <FileText className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No feedback forms found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm 
+              {searchTerm
                 ? 'Try adjusting your search criteria.'
                 : 'Get started by creating a new feedback form.'
               }
@@ -330,8 +336,8 @@ const FeedbackFormManagement = () => {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredForms.map((form) => (
-                  <tr 
-                    key={form._id} 
+                  <tr
+                    key={form._id}
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => handleAnalyticsClick(form)}
                   >
@@ -363,11 +369,10 @@ const FeedbackFormManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        form.isActive 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${form.isActive
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}>
                         {form.isActive ? 'Active' : 'Deactivated'}
                       </span>
                     </td>
@@ -416,11 +421,10 @@ const FeedbackFormManagement = () => {
                         </button>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleCopyLink(form); }}
-                          className={`p-1 rounded-md transition-colors ${
-                            copiedForms.has(form._id)
-                              ? 'text-green-600 bg-green-50'
-                              : 'text-purple-600 hover:text-purple-900 hover:bg-purple-50'
-                          }`}
+                          className={`p-1 rounded-md transition-colors ${copiedForms.has(form._id)
+                            ? 'text-green-600 bg-green-50'
+                            : 'text-purple-600 hover:text-purple-900 hover:bg-purple-50'
+                            }`}
                           title="Copy form link"
                         >
                           {copiedForms.has(form._id) ? (
@@ -578,9 +582,8 @@ const ActivationHistoryModal = ({ isOpen, onClose, form }) => {
                         {new Date(period.start).toLocaleString()} - {period.end ? new Date(period.end).toLocaleString() : 'Now'}
                       </p>
                     </div>
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      period.end ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
-                    }`}>
+                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${period.end ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+                      }`}>
                       Period {form.activationPeriods.length - index}
                     </span>
                   </div>

@@ -1,24 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  UserPlus, 
-  Search, 
-  Filter, 
-  CheckCircle, 
-  XCircle, 
-  Users, 
-  BookOpen, 
-  GraduationCap,
-  Loader2,
-  AlertTriangle,
-  User,
-  Calendar,
-  Hash,
-  ArrowLeft
-} from 'lucide-react';
 import { adminAPI } from '../services/api';
-import AssignFacultyModal from '../components/Modals/AssignFacultyModal';
 import toast from 'react-hot-toast';
+import { Plus, Trash2, ArrowLeft, Search, BookOpen, GraduationCap, Calendar, User, UserPlus, CheckCircle, XCircle } from 'lucide-react';
+import AssignFacultyModal from '../components/Modals/AssignFacultyModal';
+import DeleteConfirmationModal from '../components/Modals/DeleteConfirmModal';
+import Loader from '../components/Loader';
 
 const AssignFaculty = () => {
   const [subjects, setSubjects] = useState([]);
@@ -43,7 +30,7 @@ const AssignFaculty = () => {
         adminAPI.getFaculty(),
         adminAPI.getCourses()
       ]);
-      
+
       setSubjects(subjectsRes.data);
       setFaculty(facultyRes.data);
       setCourses(coursesRes.data);
@@ -56,7 +43,7 @@ const AssignFaculty = () => {
   };
 
   const handleAssignSuccess = (updatedSubject) => {
-    setSubjects(prev => 
+    setSubjects(prev =>
       prev.map(s => s._id === updatedSubject._id ? updatedSubject : s)
     );
     toast.success('Faculty assigned successfully!');
@@ -89,13 +76,13 @@ const AssignFaculty = () => {
   // Filter and search subjects
   const filteredSubjects = subjects.filter(s => {
     const matchesSearch = s.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         getCourseName(s.course).toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         getFacultyName(s.faculty).toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesFilter = filterStatus === 'all' || 
-                         (filterStatus === 'assigned' && s.faculty) ||
-                         (filterStatus === 'unassigned' && !s.faculty);
-    
+      getCourseName(s.course).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getFacultyName(s.faculty).toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesFilter = filterStatus === 'all' ||
+      (filterStatus === 'assigned' && s.faculty) ||
+      (filterStatus === 'unassigned' && !s.faculty);
+
     return matchesSearch && matchesFilter;
   });
 
@@ -103,15 +90,11 @@ const AssignFaculty = () => {
   const unassignedCount = subjects.filter(s => !s.faculty).length;
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-royal-600"></div>
-      </div>
-    );
+    return <Loader />;
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-x-4">
@@ -129,7 +112,7 @@ const AssignFaculty = () => {
         </div>
         <div className="flex items-center space-x-4">
           <div className="text-sm text-gray-500">
-            <span className="font-medium text-green-600">{assignedCount}</span> assigned • 
+            <span className="font-medium text-green-600">{assignedCount}</span> assigned •
             <span className="font-medium text-orange-600 ml-1">{unassignedCount}</span> unassigned
           </div>
         </div>
@@ -169,7 +152,7 @@ const AssignFaculty = () => {
             <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No subjects found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm 
+              {searchTerm
                 ? 'Try adjusting your search criteria.'
                 : 'No subjects match the selected filter.'
               }
@@ -250,11 +233,10 @@ const AssignFaculty = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => handleAssign(subject)}
-                        className={`btn btn-sm ${
-                          subject.faculty 
-                            ? 'btn-outline' 
-                            : 'btn-primary'
-                        }`}
+                        className={`btn btn-sm ${subject.faculty
+                          ? 'btn-outline'
+                          : 'btn-primary'
+                          }`}
                       >
                         {subject.faculty ? (
                           <>

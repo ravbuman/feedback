@@ -1,23 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  BookOpen, 
-  Plus, 
-  Search, 
-  Filter, 
-  Edit2, 
-  Trash2, 
-  Code, 
-  GraduationCap,
-  Loader2,
-  AlertTriangle,
-  ArrowLeft
-} from 'lucide-react';
 import { adminAPI } from '../services/api';
+import toast from 'react-hot-toast';
+import { Plus, Trash2, ArrowLeft, Search, BookOpen, Code, Edit2, GraduationCap } from 'lucide-react';
 import CreateCourseModal from '../components/Modals/CreateCourseModal';
 import EditCourseModal from '../components/Modals/EditCourseModal';
-import DeleteConfirmModal from '../components/Modals/DeleteConfirmModal';
-import toast from 'react-hot-toast';
+import DeleteConfirmationModal from '../components/Modals/DeleteConfirmModal';
+import Loader from '../components/Loader';
 
 const CourseManagement = () => {
   const [courses, setCourses] = useState([]);
@@ -52,7 +41,7 @@ const CourseManagement = () => {
   };
 
   const handleEditSuccess = (updatedCourse) => {
-    setCourses(prev => 
+    setCourses(prev =>
       prev.map(c => c._id === updatedCourse._id ? updatedCourse : c)
     );
     toast.success('Course updated successfully!');
@@ -88,20 +77,16 @@ const CourseManagement = () => {
   // Filter and search courses
   const filteredCourses = courses.filter(c => {
     const matchesSearch = c.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         c.courseCode.toLowerCase().includes(searchTerm.toLowerCase());
+      c.courseCode.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-royal-600"></div>
-      </div>
-    );
+    return <Loader />;
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="p-6 bg-gray-50 min-h-screen space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-x-4">
@@ -129,13 +114,13 @@ const CourseManagement = () => {
       {/* Search */}
       <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
             type="text"
             placeholder="Search courses by name or code..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="input pl-10"
+            className="input pl-12"
           />
         </div>
       </div>
@@ -147,7 +132,7 @@ const CourseManagement = () => {
             <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No courses found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm 
+              {searchTerm
                 ? 'Try adjusting your search criteria.'
                 : 'Get started by adding a new course.'
               }
@@ -213,11 +198,10 @@ const CourseManagement = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        course.isActive !== false 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${course.isActive !== false
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                        }`}>
                         {course.isActive !== false ? 'Active' : 'Inactive'}
                       </span>
                     </td>
@@ -301,7 +285,7 @@ const CourseManagement = () => {
         course={selectedCourse}
       />
 
-      <DeleteConfirmModal
+      <DeleteConfirmationModal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
