@@ -36,10 +36,11 @@ const ResponseAnalytics = () => {
   }, []);
 
   useEffect(() => {
+    console.log('useEffect for fetching analytics triggered. selectedForm:', selectedForm, 'filters:', filters);
     if (selectedForm) {
       fetchAnalytics();
     }
-  }, [selectedForm, filters]);
+  }, [filters, selectedForm]);
 
   const fetchInitialData = async () => {
     try {
@@ -69,6 +70,9 @@ const ResponseAnalytics = () => {
         responseAPI.getFacultyQuestionAnalytics(params)
       ]);
 
+      console.log('Analytics Response:', response.data);
+      console.log('Faculty Analytics Response:', facultyResponse.data);
+
       setAnalytics(response.data);
       setFacultyAnalytics(facultyResponse.data || []);
     } catch (error) {
@@ -85,23 +89,42 @@ const ResponseAnalytics = () => {
     setAnalytics(null);
     setFacultyAnalytics(null);
 
-    const form = forms.find(f => f._id === formId);
+    const form = forms.find((f) => f._id === formId);
     if (form) {
       const periods = form.activationPeriods || [];
       setActivationPeriods(periods);
       if (periods.length > 0) {
         const sortedPeriods = [...periods].sort((a, b) => new Date(b.start) - new Date(a.start));
-        setFilters(prev => ({ ...prev, activationPeriod: sortedPeriods[0].start }));
+        setFilters({
+          course: '',
+          year: '',
+          semester: '',
+          subject: '',
+          activationPeriod: sortedPeriods[0].start,
+        });
       } else {
-        setFilters(prev => ({ ...prev, activationPeriod: '' }));
+        setFilters({
+          course: '',
+          year: '',
+          semester: '',
+          subject: '',
+          activationPeriod: '',
+        });
       }
     } else {
       setActivationPeriods([]);
-      setFilters(prev => ({ ...prev, activationPeriod: '' }));
+      setFilters({
+        course: '',
+        year: '',
+        semester: '',
+        subject: '',
+        activationPeriod: '',
+      });
     }
   };
 
   const handleFilterChange = (key, value) => {
+    console.log('Filter changed:', key, value);
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
@@ -166,7 +189,7 @@ const ResponseAnalytics = () => {
             ) : (
               <>
                 <PieChartIcon className="h-4 w-4 mr-2" />
-                Show Pie Charts
+                Show Charts
               </>
             )}
           </button>
@@ -344,7 +367,7 @@ const ResponseAnalytics = () => {
 
               return (
                 <QuestionFacultyAnalytics
-                  key={index}
+                  key={question.questionId}
                   question={question}
                   facultyBreakdown={facultyBreakdown}
                   showCharts={showPieCharts}

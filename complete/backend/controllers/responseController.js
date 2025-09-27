@@ -417,11 +417,11 @@ const exportToCSV = async (req, res) => {
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
     if (activationPeriod) {
       const form = await FeedbackForm.findById(formId);
-      const period = form?.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
-      if (period) {
-        filter['activationPeriodStart'] = period.start;
-      } else {
-        filter['activationPeriodStart'] = new Date(activationPeriod);
+      if (form && form.activationPeriods) {
+        const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+        if (period) {
+          filter.submittedAt = { $gte: period.start, $lte: period.end };
+        }
       }
     }
 
@@ -538,8 +538,13 @@ const getFacultyQuestionAnalytics = async (req, res) => {
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
     if (subject) filter['subjectResponses.subject'] = subject;
     if (activationPeriod) {
-      // Ensure activationPeriodStart in filter is a Date object for proper comparison
-      filter['activationPeriodStart'] = new Date(activationPeriod);
+      const form = await FeedbackForm.findById(formId);
+      if (form && form.activationPeriods) {
+        const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+        if (period) {
+          filter.submittedAt = { $gte: period.start, $lte: period.end };
+        }
+      }
     }
 
     // Get all responses and populate necessary data
