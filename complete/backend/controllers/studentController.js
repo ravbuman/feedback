@@ -96,7 +96,24 @@ const getFeedbackForm = async (req, res) => {
       return res.status(400).json({ message: 'This feedback form is currently inactive. You cannot submit feedback at this time.' });
     }
 
-    res.json(form);
+    // Check if there is a currently active period
+    const currentDate = new Date();
+    const activePeriod = form.activationPeriods.find(period => {
+      const startDate = new Date(period.start);
+      const endDate = period.end ? new Date(period.end) : null;
+      return startDate <= currentDate && (!endDate || endDate >= currentDate);
+    });
+
+    if (!activePeriod) {
+      return res.status(400).json({ message: 'This feedback form is not currently in an active period.' });
+    }
+
+    const formResponse = {
+      ...form.toObject(),
+      currentPeriod: activePeriod
+    };
+
+    res.json(formResponse);
   } catch (error) {
     console.error('Get feedback form error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -146,14 +163,14 @@ const submitFeedback = async (req, res) => {
     // Check validation results
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         message: 'Validation failed',
-        errors: errors.array() 
+        errors: errors.array()
       });
     }
-    
+
     const { studentInfo, courseInfo, subjectResponses, formId } = req.body;
-    
+
     // Validate ObjectIds
     const mongoose = require('mongoose');
     if (!mongoose.Types.ObjectId.isValid(formId)) {
@@ -171,12 +188,35 @@ const submitFeedback = async (req, res) => {
       }
     }
 
-    // Check if student has already submitted feedback for this course/year/semester
+    // Get the feedback form and check the current period
+    const feedbackForm = await FeedbackForm.findById(formId);
+    if (!feedbackForm) {
+      return res.status(404).json({ message: 'Feedback form not found' });
+    }
+
+    // Find the current active period
+    const currentDate = new Date();
+    const activePeriod = feedbackForm.activationPeriods.find(period => {
+      const startDate = new Date(period.start);
+      const endDate = period.end ? new Date(period.end) : null;
+      return startDate <= currentDate && (!endDate || endDate >= currentDate);
+    });
+
+    if (!activePeriod) {
+      return res.status(400).json({ message: 'This feedback form is not currently in an active period' });
+    }
+
+    // Check if student has already submitted feedback for this form in the current period
     const existingResponse = await Response.findOne({
       'studentInfo.rollNumber': studentInfo.rollNumber,
       'courseInfo.course': courseInfo.course,
       'courseInfo.year': courseInfo.year,
-      'courseInfo.semester': courseInfo.semester
+      'courseInfo.semester': courseInfo.semester,
+      'period.start': activePeriod.start,
+      $or: [
+        { 'period.end': { $exists: false } },
+        { 'period.end': activePeriod.end }
+      ]
     });
 
     if (existingResponse) {
@@ -188,7 +228,7 @@ const submitFeedback = async (req, res) => {
     if (!form) {
       return res.status(404).json({ message: 'Feedback form not found' });
     }
-    
+
     // Create single response document with all subjects and question details
     const responseDoc = {
       studentInfo: {
@@ -200,6 +240,10 @@ const submitFeedback = async (req, res) => {
         course: courseInfo.course,
         year: courseInfo.year,
         semester: courseInfo.semester
+      },
+      period: {
+        start: activePeriod.start,
+        end: activePeriod.end
       },
       subjectResponses: subjectResponses.map(response => {
         // If the frontend sends answersWithQuestions, use that structure
@@ -239,7 +283,7 @@ const submitFeedback = async (req, res) => {
     };
 
     const savedResponse = await Response.create(responseDoc);
-    
+
     // Populate the response for better return data
     await savedResponse.populate([
       { path: 'courseInfo.course', select: 'courseName courseCode' },
@@ -254,7 +298,7 @@ const submitFeedback = async (req, res) => {
   } catch (error) {
     if (error.name === 'ValidationError') {
     }
-    res.status(500).json({ 
+    res.status(500).json({
       message: 'Server error',
       error: error.message,
       details: error.name === 'ValidationError' ? error.errors : undefined

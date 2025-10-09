@@ -82,6 +82,15 @@ const responseSchema = new mongoose.Schema({
       required: true
     }
   },
+  period: {
+    start: {
+      type: Date,
+      required: true
+    },
+    end: {
+      type: Date
+    }
+  },
   // All subjects responses for this student
   subjectResponses: [subjectResponseSchema],
   submittedAt: {

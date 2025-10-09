@@ -134,25 +134,25 @@ const SubjectManagement = () => {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-center gap-x-4">
           <button
             onClick={() => navigate(-1)}
             className="p-2 rounded-full hover:bg-gray-100 transition-colors"
             title="Go back"
           >
-            <ArrowLeft className="h-6 w-6 text-gray-600" />
+            <ArrowLeft className="h-5 w-5 md:h-6 md:w-6 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Subject Management</h1>
-            <p className="text-gray-600">Manage subjects, their courses, and assigned faculty</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Subject Management</h1>
+            <p className="text-sm md:text-base text-gray-600">Manage subjects, their courses, and assigned faculty</p>
           </div>
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary btn-lg"
+          className="btn btn-primary md:btn-lg w-full md:w-auto"
         >
-          <Plus className="h-5 w-5 mr-2" />
+          <Plus className="h-5 w-5 md:h-5 md:w-5 mr-2" />
           Add Subject
         </button>
       </div>

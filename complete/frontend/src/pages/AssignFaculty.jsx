@@ -94,7 +94,7 @@ const AssignFaculty = () => {
   }
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 min-h-screen space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-x-4">
@@ -103,14 +103,14 @@ const AssignFaculty = () => {
             className="p-2 rounded-full hover:bg-gray-100 transition-colors"
             title="Go back"
           >
-            <ArrowLeft className="h-6 w-6 text-gray-600" />
+            <ArrowLeft className="h-5 w-5 md:h-6 md:w-6 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Assign Faculty</h1>
-            <p className="text-gray-600">Assign faculty members to subjects</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Assign Faculty</h1>
+            <p className="text-sm md:text-base text-gray-600">Assign faculty members to subjects</p>
           </div>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-2 md:space-x-4">
           <div className="text-sm text-gray-500">
             <span className="font-medium text-green-600">{assignedCount}</span> assigned •
             <span className="font-medium text-orange-600 ml-1">{unassignedCount}</span> unassigned
@@ -122,7 +122,7 @@ const AssignFaculty = () => {
       <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 md:h-4 md:w-4 text-gray-400" />
             <input
               type="text"
               placeholder="Search subjects by name, course, or faculty..."
@@ -135,7 +135,7 @@ const AssignFaculty = () => {
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="input w-auto"
+              className="input w-full md:w-auto"
             >
               <option value="all">All Subjects</option>
               <option value="assigned">Assigned Faculty</option>
@@ -146,7 +146,7 @@ const AssignFaculty = () => {
       </div>
 
       {/* Subjects List */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
         {filteredSubjects.length === 0 ? (
           <div className="text-center py-12">
             <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
@@ -202,7 +202,7 @@ const AssignFaculty = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm text-gray-900">
-                        <GraduationCap className="h-4 w-4 mr-2 text-gray-400" />
+                        <GraduationCap className="h-5 w-5 md:h-4 md:w-4 mr-2 text-gray-400" />
                         <span>{getCourseName(subject.course)}</span>
                         {typeof subject.course === 'object' && subject.course.courseCode && (
                           <span className="ml-2 text-xs text-gray-500">({subject.course.courseCode})</span>
@@ -211,13 +211,13 @@ const AssignFaculty = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm text-gray-900">
-                        <Calendar className="h-4 w-4 mr-2 text-gray-400" />
+                        <Calendar className="h-5 w-5 md:h-4 md:w-4 mr-2 text-gray-400" />
                         <span>Year {subject.year}, Sem {subject.semester}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm">
-                        <User className={`h-4 w-4 mr-2 ${subject.faculty ? 'text-gray-400' : 'text-orange-400'}`} />
+                        <User className={`mr-2 ${subject.faculty ? 'text-gray-400' : 'text-orange-400'} h-5 w-5 md:h-4 md:w-4`} />
                         <div>
                           <div className={subject.faculty ? 'text-gray-900' : 'text-orange-600 font-medium'}>
                             {getFacultyName(subject.faculty)}
@@ -233,19 +233,19 @@ const AssignFaculty = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => handleAssign(subject)}
-                        className={`btn btn-sm ${subject.faculty
+                        className={`btn md:btn-sm ${subject.faculty
                           ? 'btn-outline'
                           : 'btn-primary'
                           }`}
                       >
                         {subject.faculty ? (
                           <>
-                            <UserPlus className="h-4 w-4 mr-1" />
+                            <UserPlus className="h-5 w-5 md:h-4 md:w-4 mr-1" />
                             Reassign
                           </>
                         ) : (
                           <>
-                            <UserPlus className="h-4 w-4 mr-1" />
+                            <UserPlus className="h-5 w-5 md:h-4 md:w-4 mr-1" />
                             Assign
                           </>
                         )}

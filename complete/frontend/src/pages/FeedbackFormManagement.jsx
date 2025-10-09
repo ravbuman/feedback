@@ -238,7 +238,7 @@ const FeedbackFormManagement = () => {
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-center gap-x-4">
           <button
             onClick={() => navigate(-1)}
@@ -254,7 +254,7 @@ const FeedbackFormManagement = () => {
         </div>
         <button
           onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary btn-lg"
+          className="btn btn-primary md:btn-lg w-full md:w-auto"
         >
           <Plus className="h-5 w-5 mr-2" />
           Create Form

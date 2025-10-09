@@ -1,6 +1,8 @@
 import axios from 'axios';
+import AuthInterceptor from './authInterceptor';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://feedback-lfvv.onrender.com/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://feedback-lfvv.onrender.com/api');
 
 // Create axios instance
 const api = axios.create({
@@ -27,12 +29,26 @@ api.interceptors.request.use(
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Only redirect if it's not a token verification request
-      if (!error.config?.url?.includes('/verify-token')) {
-        localStorage.removeItem('adminToken');
-        window.location.href = '/admin/login';
+  async (error) => {
+    // Only handle 401 errors for non-auth related endpoints
+    if (error.response?.status === 401 &&
+      !error.config?.url?.includes('/verify-token') &&
+      !error.config?.url?.includes('/admin/login')) {
+      try {
+        // Try to verify the token first
+        await authAPI.verifyToken();
+        // If verification succeeds, retry the original request
+        return api(error.config);
+      } catch (verifyError) {
+        // Get auth instance and handle logout through context
+        const auth = AuthInterceptor.getAuth();
+        if (auth && auth.logout) {
+          auth.logout();
+        } else {
+          // Fallback if auth context is not available
+          localStorage.removeItem('adminToken');
+          window.location.href = '/admin/login';
+        }
       }
     }
     return Promise.reject(error);

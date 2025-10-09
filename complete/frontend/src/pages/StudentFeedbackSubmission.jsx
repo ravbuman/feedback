@@ -72,7 +72,14 @@ const StudentFeedbackSubmission = () => {
         studentAPI.getCourses()
       ]);
 
-      setFeedbackForm(formRes.data);
+      const formData = formRes.data;
+      if (!formData.currentPeriod) {
+        toast.error('This feedback form is not currently in an active period');
+        navigate('/');
+        return;
+      }
+
+      setFeedbackForm(formData);
       setCourses(coursesRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -319,13 +326,13 @@ const StudentFeedbackSubmission = () => {
           className="absolute top-0 left-0 p-2 rounded-full hover:bg-gray-100 transition-colors"
           title="Go back"
         >
-          <ArrowLeft className="h-6 w-6 text-gray-600" />
+          <ArrowLeft className="h-5 w-5 md:h-6 md:w-6 text-gray-600" />
         </button>
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{feedbackForm.formName}</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{feedbackForm.formName}</h1>
           {feedbackForm.description && (
-            <p className="mt-2 text-lg text-gray-600">{feedbackForm.description}</p>
+            <p className="mt-2 text-base md:text-lg text-gray-600">{feedbackForm.description}</p>
           )}
         </div>
 

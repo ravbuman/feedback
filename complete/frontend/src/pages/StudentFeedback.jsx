@@ -173,9 +173,9 @@ const StudentFeedback = () => {
     <div className="max-w-4xl mx-auto">
       <div className="text-center mb-8">
         <GraduationCap className="mx-auto h-12 w-12 text-primary-600" />
-        <h1 className="mt-4 text-3xl font-bold text-gray-900">{form.formName}</h1>
+        <h1 className="mt-4 text-2xl md:text-3xl font-bold text-gray-900">{form.formName}</h1>
         {form.description && (
-          <p className="mt-2 text-lg text-gray-600">{form.description}</p>
+          <p className="mt-2 text-base md:text-lg text-gray-600">{form.description}</p>
         )}
       </div>
 
