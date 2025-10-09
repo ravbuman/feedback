@@ -41,18 +41,18 @@ const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left Side - Content */}
-            <div className="space-y-8 order-2 lg:order-none text-center lg:text-left">
-              <div className="space-y-6">
+            <div className="space-y-6 md:space-y-8 order-2 lg:order-none text-center lg:text-left">
+              <div className="space-y-4 md:space-y-6">
                 <div className="flex items-center justify-center lg:justify-start space-x-3">
-                  <GraduationCap className="h-10 w-10 sm:h-12 sm:w-12 text-royal-600" />
-                  <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
+                  <GraduationCap className="h-8 w-8 md:h-12 md:w-12 text-royal-600" />
+                  <h1 className="text-2xl md:text-4xl font-bold text-gray-900">
                     PydahSoft
                   </h1>
                 </div>
-                <h2 className="text-4xl sm:text-5xl font-bold text-gray-900 leading-tight">
+                <h2 className="text-2xl md:text-5xl font-bold text-gray-900 leading-tight">
                   Student Feedback System
                 </h2>
-                <p className="text-lg sm:text-xl text-gray-600 leading-relaxed">
+                <p className="text-base md:text-xl text-gray-600 leading-relaxed">
                   A comprehensive platform designed to streamline student feedback collection
                   and management across all subjects and faculty members.
                 </p>
@@ -60,10 +60,10 @@ const Home = () => {
               </div>
 
               {/* Admin Login Button */}
-              <div className="pt-6">
+              <div className="pt-4 md:pt-6">
                 <Link
                   to="/admin/login"
-                  className="btn btn-primary btn-lg inline-flex items-center group"
+                  className="btn btn-primary md:btn-lg inline-flex items-center justify-center group w-full md:w-auto"
                 >
                   Admin Login
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -90,10 +90,10 @@ const Home = () => {
       </div>
 
       {/* About Section */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-6 text-center space-y-6">
-          <h2 className="text-4xl font-bold text-gray-900">About Our System</h2>
-          <p className="text-lg text-gray-600 max-w-3xl mx-auto">
+      <section className="py-16 md:py-20 bg-white">
+        <div className="max-w-6xl mx-auto px-6 text-center space-y-4 md:space-y-6">
+          <h2 className="text-2xl md:text-4xl font-bold text-gray-900">About Our System</h2>
+          <p className="text-base md:text-lg text-gray-600 max-w-3xl mx-auto">
             Our Student Feedback System is designed with both administrators and students in mind.
             It aims to enhance transparency, streamline communication, and provide meaningful insights
             for better decision-making in education.
@@ -102,9 +102,9 @@ const Home = () => {
       </section>
 
       {/* Benefits Section */}
-      <section className="py-20 bg-royal-50">
-        <div className="max-w-7xl mx-auto px-6 space-y-12">
-          <h2 className="text-3xl font-bold text-center text-gray-900">Key Benefits</h2>
+      <section className="py-16 md:py-20 bg-royal-50">
+        <div className="max-w-7xl mx-auto px-6 space-y-8 md:space-y-12">
+          <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-900">Key Benefits</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               { icon: ShieldCheck, title: "Secure & Reliable", desc: "Data privacy and security at every level." },
@@ -114,10 +114,10 @@ const Home = () => {
               { icon: MessageSquare, title: "Open Communication", desc: "Encourages dialogue between students & faculty." },
               { icon: Layers, title: "Scalable Design", desc: "Easily adapts to institutions of all sizes." }
             ].map((item, idx) => (
-              <div key={idx} className="p-6 bg-white rounded-xl shadow hover:shadow-lg transition">
-                <item.icon className="h-10 w-10 text-royal-600 mb-4" />
-                <h4 className="text-xl font-semibold text-gray-900">{item.title}</h4>
-                <p className="text-gray-600 mt-2">{item.desc}</p>
+              <div key={idx} className="p-5 md:p-6 bg-white rounded-xl shadow hover:shadow-lg transition">
+                <item.icon className="h-8 w-8 md:h-10 md:w-10 text-royal-600 mb-3 md:mb-4" />
+                <h4 className="text-lg md:text-xl font-semibold text-gray-900">{item.title}</h4>
+                <p className="text-sm md:text-base text-gray-600 mt-2">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -125,9 +125,9 @@ const Home = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-6 space-y-12">
-          <h2 className="text-3xl font-bold text-center text-gray-900">How It Works</h2>
+      <section className="py-16 md:py-20 bg-white">
+        <div className="max-w-6xl mx-auto px-6 space-y-8 md:space-y-12">
+          <h2 className="text-2xl md:text-3xl font-bold text-center text-gray-900">How It Works</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
             {[
               { step: "01", title: "Student Feedback", desc: "Students submit feedback easily online." },
@@ -135,10 +135,10 @@ const Home = () => {
               { step: "03", title: "Data Analysis", desc: "Automated reports & insights generated." },
               { step: "04", title: "Action & Improvement", desc: "Faculty & admin use insights to improve." }
             ].map((item, idx) => (
-              <div key={idx} className="p-6 bg-royal-50 rounded-lg shadow-sm">
-                <div className="text-royal-600 font-bold text-2xl mb-2">{item.step}</div>
-                <h4 className="text-xl font-semibold text-gray-900">{item.title}</h4>
-                <p className="text-gray-600 mt-2">{item.desc}</p>
+              <div key={idx} className="p-5 md:p-6 bg-royal-50 rounded-lg shadow-sm">
+                <div className="text-royal-600 font-bold text-xl md:text-2xl mb-1 md:mb-2">{item.step}</div>
+                <h4 className="text-lg md:text-xl font-semibold text-gray-900">{item.title}</h4>
+                <p className="text-sm md:text-base text-gray-600 mt-2">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -168,15 +168,15 @@ const Home = () => {
       </section> */}
 
       {/* Final CTA */}
-      <section className="py-20 bg-royal-50 text-center">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <h2 className="text-4xl font-bold text-gray-900">Ready to Get Started?</h2>
-          <p className="text-lg text-gray-600">
+      <section className="py-16 md:py-20 bg-royal-50 text-center">
+        <div className="max-w-3xl mx-auto space-y-4 md:space-y-6">
+          <h2 className="text-2xl md:text-4xl font-bold text-gray-900">Ready to Get Started?</h2>
+          <p className="text-base md:text-lg text-gray-600">
             Empower your institution with a smart, secure, and scalable student feedback system.
           </p>
           <Link
             to="/admin/login"
-            className="btn btn-primary btn-lg inline-flex items-center group"
+            className="btn btn-primary md:btn-lg inline-flex items-center justify-center group w-full md:w-auto"
           >
             Launch Admin Panel
             <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />

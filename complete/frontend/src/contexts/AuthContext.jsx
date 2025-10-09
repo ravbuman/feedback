@@ -1,5 +1,7 @@
-import { createContext, useContext, useReducer, useEffect, useMemo, useRef } from 'react';
+import { createContext, useContext, useReducer, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../services/api';
+import AuthInterceptor from '../services/authInterceptor';
 import Loader from '../components/Loader';
 
 const AuthContext = createContext(undefined);
@@ -55,6 +57,8 @@ const authReducer = (state, action) => {
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
   const isInitialized = useRef(false);
+  const navigate = useNavigate();
+  const isNavigationReady = useRef(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -113,16 +117,29 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('adminToken');
     dispatch({ type: 'LOGOUT' });
-  };
+    if (navigate) {
+      navigate('/admin/login');
+    } else {
+      window.location.href = '/admin/login';
+    }
+  }, [navigate]);
 
   const value = useMemo(() => ({
     ...state,
     login,
     logout,
   }), [state, login, logout]);
+
+  // Set auth instance for interceptor
+  useEffect(() => {
+    AuthInterceptor.setAuth({
+      logout,
+      isAuthenticated: state.isAuthenticated
+    });
+  }, [logout, state.isAuthenticated]);
 
   // Don't render children until context is properly initialized
   if (!isInitialized.current && state.loading) {
