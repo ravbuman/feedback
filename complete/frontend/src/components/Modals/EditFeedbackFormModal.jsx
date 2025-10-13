@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
-import { X, Plus, Trash2, FileText, BarChart3, Loader2, Move, GripVertical } from 'lucide-react';
+import { X, Plus, Trash2, FileText, BarChart3, Loader2, Move, GripVertical, Globe } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const EditFeedbackFormModal = ({ isOpen, onClose, onSuccess, form }) => {
   const [loading, setLoading] = useState(false);
+  const [faculty, setFaculty] = useState([]);
   const {
     register,
     handleSubmit,
@@ -18,9 +19,17 @@ const EditFeedbackFormModal = ({ isOpen, onClose, onSuccess, form }) => {
     defaultValues: {
       formName: '',
       description: '',
-      questions: []
+      questions: [],
+      isGlobal: false,
+      trainingName: '',
+      assignedFaculty: [],
+      activationStart: '',
+      activationEnd: '',
+      isActive: true
     }
   });
+
+  const isGlobal = watch('isGlobal');
 
   const { fields, append, remove, move } = useFieldArray({
     control,
@@ -32,8 +41,35 @@ const EditFeedbackFormModal = ({ isOpen, onClose, onSuccess, form }) => {
       setValue('formName', form.formName || '');
       setValue('description', form.description || '');
       setValue('questions', form.questions || []);
+      setValue('isGlobal', form.isGlobal || false);
+      setValue('trainingName', form.trainingName || '');
+      setValue('assignedFaculty', form.assignedFaculty || []);
+      setValue('isActive', form.isActive !== false);
+      
+      // Set activation period values
+      if (form.activationPeriods && form.activationPeriods.length > 0) {
+        const period = form.activationPeriods[0];
+        setValue('activationStart', new Date(period.start).toISOString().slice(0, 16));
+        setValue('activationEnd', period.end ? new Date(period.end).toISOString().slice(0, 16) : '');
+      } else {
+        // Default values if no periods exist
+        setValue('activationStart', new Date().toISOString().slice(0, 16));
+        setValue('activationEnd', new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 16));
+      }
+      
+      fetchFaculty();
     }
   }, [form, isOpen, setValue]);
+
+  const fetchFaculty = async () => {
+    try {
+      const response = await adminAPI.getFaculty();
+      setFaculty(response.data);
+    } catch (error) {
+      console.error('Error fetching faculty:', error);
+      toast.error('Failed to fetch faculty data');
+    }
+  };
 
   const questionTypes = [
     { value: 'text', label: 'Short Text', description: 'Single line text input' },
@@ -58,7 +94,22 @@ const EditFeedbackFormModal = ({ isOpen, onClose, onSuccess, form }) => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const response = await adminAPI.updateFeedbackForm(form._id, data);
+      // Prepare form data with activation periods
+      const formData = {
+        ...data,
+        activationPeriods: [
+          {
+            start: new Date(data.activationStart),
+            end: new Date(data.activationEnd)
+          }
+        ]
+      };
+      
+      // Remove the temporary fields
+      delete formData.activationStart;
+      delete formData.activationEnd;
+      
+      const response = await adminAPI.updateFeedbackForm(form._id, formData);
       toast.success('Feedback form updated successfully!');
       onSuccess?.(response.data);
       onClose();
@@ -129,6 +180,120 @@ const EditFeedbackFormModal = ({ isOpen, onClose, onSuccess, form }) => {
                 rows={3}
                 placeholder="Enter form description (optional)"
               />
+            </div>
+
+            {/* Global Form Toggle */}
+            <div className="border-t pt-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Globe className="h-5 w-5 text-purple-600" />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium text-gray-900">Global Training Form</label>
+                  <p className="text-xs text-gray-500">Create a form for college-wide trainings (e.g., CRT)</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    {...register('isGlobal')}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* Global Form Fields */}
+            {isGlobal && (
+              <div className="bg-purple-50 rounded-lg p-4 space-y-4 border border-purple-200">
+                <div className="flex items-center space-x-2">
+                  <Globe className="h-5 w-5 text-purple-600" />
+                  <h5 className="font-medium text-purple-900">Global Training Settings</h5>
+                </div>
+                
+                <div>
+                  <label className="label">Training Name *</label>
+                  <input
+                    type="text"
+                    {...register('trainingName', { 
+                      required: isGlobal ? 'Training name is required for global forms' : false
+                    })}
+                    className={`input ${errors.trainingName ? 'border-red-300 focus:ring-red-500' : ''}`}
+                    placeholder="e.g., CRT Training, Soft Skills Workshop"
+                  />
+                  {errors.trainingName && (
+                    <p className="mt-1 text-sm text-red-600">{errors.trainingName.message}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="label">Assigned Faculty</label>
+                  <div className="space-y-2 max-h-32 overflow-y-auto border border-gray-200 rounded-lg p-2">
+                    {faculty.map((facultyMember) => (
+                      <label key={facultyMember._id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input
+                          type="checkbox"
+                          value={facultyMember._id}
+                          {...register('assignedFaculty')}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+                        />
+                        <div className="flex-1">
+                          <span className="text-sm font-medium text-gray-900">{facultyMember.name}</span>
+                          <span className="text-xs text-gray-500 ml-2">({facultyMember.designation} - {facultyMember.department})</span>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">Select faculty members who will conduct this training</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Activation Period Section */}
+          <div className="bg-gray-50 rounded-lg p-4 space-y-4">
+            <h4 className="font-medium text-gray-900">Activation Period</h4>
+            <p className="text-sm text-gray-600">Set when this form will be active for students to submit feedback</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="label">Start Date *</label>
+                <input
+                  type="datetime-local"
+                  {...register('activationStart', { 
+                    required: 'Start date is required'
+                  })}
+                  className={`input ${errors.activationStart ? 'border-red-300 focus:ring-red-500' : ''}`}
+                />
+                {errors.activationStart && (
+                  <p className="mt-1 text-sm text-red-600">{errors.activationStart.message}</p>
+                )}
+              </div>
+              
+              <div>
+                <label className="label">End Date *</label>
+                <input
+                  type="datetime-local"
+                  {...register('activationEnd', { 
+                    required: 'End date is required'
+                  })}
+                  className={`input ${errors.activationEnd ? 'border-red-300 focus:ring-red-500' : ''}`}
+                />
+                {errors.activationEnd && (
+                  <p className="mt-1 text-sm text-red-600">{errors.activationEnd.message}</p>
+                )}
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                {...register('isActive')}
+                className="h-4 w-4 text-royal-600 focus:ring-royal-500 border-gray-300 rounded"
+              />
+              <label className="text-sm text-gray-700">
+                Activate form immediately after update
+              </label>
             </div>
           </div>
 

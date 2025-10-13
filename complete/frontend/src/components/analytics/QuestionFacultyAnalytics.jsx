@@ -158,20 +158,33 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showCharts, isPe
           
           switch (questionType) {
             case 'scale':
-              return period.analytics.average || period.scale.average || 0;
+              return (period.analytics && typeof period.analytics.average === 'number')
+                ? period.analytics.average
+                : (period.scale && typeof period.scale.average === 'number')
+                  ? period.scale.average
+                  : 0;
             case 'yesno':
-              return period.analytics.yesPercentage || 0;
+              return (period.analytics && typeof period.analytics.yesPercentage === 'number')
+                ? period.analytics.yesPercentage
+                : 0;
             case 'multiplechoice':
-              const counts = period.analytics.choiceCounts || {};
-              const maxCount = Math.max(...Object.values(counts));
+              const counts = (period.analytics && period.analytics.choiceCounts)
+                ? (Array.isArray(period.analytics.choiceCounts)
+                    ? period.analytics.choiceCounts.reduce((acc, item) => {
+                        acc[item.choice] = item.count;
+                        return acc;
+                      }, {})
+                    : period.analytics.choiceCounts)
+                : {};
+              const valuesArray = Object.values(counts);
+              const maxCount = valuesArray.length > 0 ? Math.max(...valuesArray) : 0;
               return maxCount || 0;
             default:
               return 0;
           }
         });
 
-        // Skip if all values are zero
-        if (values.every(v => v === 0)) return null;
+        // Do not skip completely; allow zero-lines to render to avoid fallback UI
 
         const facultyData = [{
           label: 'Rating',  // Single line per chart, so just label it 'Rating'
@@ -202,6 +215,9 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showCharts, isPe
       if (facultyCharts.length > 0) {
         return facultyCharts;
       }
+
+      // If no charts could be built, return a benign placeholder instead of falling back
+      return <div key={`${key}-no-data`} className="text-sm text-gray-500">No data to chart for selected periods.</div>;
     }
 
     // Fallback for non-comparison mode

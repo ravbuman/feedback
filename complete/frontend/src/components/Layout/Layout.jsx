@@ -1,5 +1,5 @@
 import { useAuth } from '../../contexts/AuthContext';
-import { GraduationCap, LogOut } from 'lucide-react';
+import { TrendingUp, LogOut } from 'lucide-react';
 
 const Layout = ({ children }) => {
   const { isAuthenticated, logout } = useAuth();
@@ -7,11 +7,14 @@ const Layout = ({ children }) => {
   return (
     <div className="min-h-screen bg-white">
       {/* Top bar */}
-      <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 shadow-sm sm:px-6 lg:px-8">
+      <div className="sticky top-0 z-40 flex h-14 sm:h-16 shrink-0 items-center justify-between border-b border-gray-200 sm:bg-white bg-white/40 backdrop-blur-sm px-4 shadow-sm sm:px-6 lg:px-8">
         {/* PydahSoft Branding */}
         <div className="flex items-center">
-          <GraduationCap className="h-8 w-8 text-royal-600" />
-          <span className="ml-2 text-xl font-bold text-gray-900">Admin Dashboard</span>
+          <TrendingUp  className="h-5 w-5 sm:h-7 sm:w-7 text-royal-600" />
+          <span className="ml-2 text-sm sm:text-lg md:text-2xl font-bold text-gray-900">
+            Feeder
+          </span>
+
         </div>
 
         {/* Right side - Admin Dashboard text and logout */}
@@ -21,10 +24,10 @@ const Layout = ({ children }) => {
 
               <button
                 onClick={logout}
-                className="flex items-center gap-x-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center  text-base text-gray-600 hover:text-gray-900 transition-colors"
               >
-                <LogOut className="h-4 w-4" />
-                Logout
+                <LogOut className="h-4 w-6" />
+                <span className='hidden sm:inline'>Logout</span>
               </button>
             </>
           )}

@@ -64,6 +64,11 @@ const FacultyManagement = () => {
   const handleDeleteSuccess = () => {
     setFaculty(prev => prev.filter(f => f._id !== selectedFaculty._id));
     toast.success('Faculty deleted successfully!');
+    
+    // Trigger a custom event to notify other components
+    window.dispatchEvent(new CustomEvent('facultyDeleted', { 
+      detail: { facultyId: selectedFaculty._id } 
+    }));
   };
 
   const handleEdit = (faculty) => {

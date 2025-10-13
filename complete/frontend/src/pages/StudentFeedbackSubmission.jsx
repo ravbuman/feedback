@@ -92,8 +92,25 @@ const StudentFeedbackSubmission = () => {
 
   const fetchSubjects = async (courseId, year, semester) => {
     try {
-      const response = await studentAPI.getSubjectsByCourse(courseId, year, semester);
-      setSubjects(response.data);
+      if (feedbackForm?.isGlobal) {
+        // For global forms, create a virtual training subject
+        const trainingSubject = {
+          // Use the formId as a stable ObjectId-like subject id for global forms
+          _id: formId,
+          subjectName: feedbackForm.trainingName,
+          course: courseId,
+          year: parseInt(year),
+          semester: parseInt(semester),
+          // Use a single faculty object so UI can render name consistently
+          faculty: feedbackForm.assignedFaculty?.[0] || null,
+          isGlobal: true
+        };
+        setSubjects([trainingSubject]);
+      } else {
+        // For regular forms, fetch actual subjects
+        const response = await studentAPI.getSubjectsByCourse(courseId, year, semester);
+        setSubjects(response.data);
+      }
     } catch (error) {
       console.error('Error fetching subjects:', error);
       toast.error('Failed to load subjects');
@@ -157,9 +174,15 @@ const StudentFeedbackSubmission = () => {
             }
           }
 
+          // For global forms, use the form's assigned faculty
+          const facultyId = feedbackForm?.isGlobal && feedbackForm.assignedFaculty?.length > 0 
+            ? feedbackForm.assignedFaculty[0]._id 
+            : subjects.find(s => s._id === subjectId)?.faculty?._id;
+
           return {
             subject: subjectId,
             form: formId,
+            faculty: facultyId,
             answersWithQuestions: answersWithQuestions
           };
         })
@@ -170,7 +193,8 @@ const StudentFeedbackSubmission = () => {
       navigate('/');
     } catch (error) {
       console.error('Error submitting responses:', error);
-      toast.error('Failed to submit feedback. Please try again.');
+      const serverMsg = error.response?.data?.message || error.message || 'Failed to submit feedback';
+      toast.error(serverMsg);
     } finally {
       setSubmitting(false);
     }

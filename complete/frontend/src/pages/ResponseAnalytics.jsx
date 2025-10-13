@@ -585,11 +585,19 @@ const ResponseAnalytics = () => {
                 ).filter(Boolean);
 
                 // Generate accurate period labels
+                const toIso = (v) => {
+                  try { return new Date(v).toISOString(); } catch { return String(v || ''); }
+                };
                 const periodLabels = validPeriods.map(([_, periodData]) => {
-                  const period = activationPeriods.find(p => p.start === periodData.periodStart);
-                  const startDate = new Date(period.start).toLocaleDateString();
-                  const endDate = period.end ? new Date(period.end).toLocaleDateString() : 'Active';
-                  return `${startDate} - ${endDate}`;
+                  const match = activationPeriods.find(p => toIso(p.start) === toIso(periodData.periodStart));
+                  if (match) {
+                    const startDate = new Date(match.start).toLocaleDateString();
+                    const endDate = match.end ? new Date(match.end).toLocaleDateString() : 'Active';
+                    return `${startDate} - ${endDate}`;
+                  }
+                  // Fallback if not found in local activationPeriods
+                  const startDate = new Date(periodData.periodStart).toLocaleDateString();
+                  return `${startDate}`;
                 });
 
                 // For each faculty, create a row that shows their data across valid periods only
@@ -626,17 +634,10 @@ const ResponseAnalytics = () => {
                 );
               })
             ) : (
-              // Regular view showing faculty breakdown
+              // Regular view showing faculty breakdown (no Overall row)
               analytics.questionAnalytics.map((question, index) => {
-                const facultyBreakdown = [{
-                  faculty: null,
-                  subjects: [],
-                  analytics: question.analytics || {}
-                }];
-
-                if (facultyAnalytics && facultyAnalytics.length > 0) {
-                  facultyBreakdown.push(
-                    ...facultyAnalytics.map(facultyData => {
+                const facultyBreakdown = (facultyAnalytics && facultyAnalytics.length > 0)
+                  ? facultyAnalytics.map(facultyData => {
                       const questionAnalysis = facultyData.questionAnalytics.find(
                         qa => qa.questionId === question.questionId
                       );
@@ -646,8 +647,7 @@ const ResponseAnalytics = () => {
                         analytics: questionAnalysis?.analytics || {}
                       };
                     })
-                  );
-                }
+                  : [];
 
                 return (
                   <QuestionFacultyAnalytics

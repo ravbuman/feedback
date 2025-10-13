@@ -74,6 +74,11 @@ const SubjectManagement = () => {
   const handleDeleteSuccess = () => {
     setSubjects(prev => prev.filter(s => s._id !== selectedSubject._id));
     toast.success('Subject deleted successfully!');
+    
+    // Trigger a custom event to notify other components
+    window.dispatchEvent(new CustomEvent('subjectDeleted', { 
+      detail: { subjectId: selectedSubject._id } 
+    }));
   };
 
   const handleEdit = (subject) => {
