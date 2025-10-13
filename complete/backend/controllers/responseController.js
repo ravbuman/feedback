@@ -848,5 +848,186 @@ module.exports = {
   exportToCSV,
   getFacultyPerformance,
   deleteResponse,
-  getFacultyQuestionAnalytics
+  getFacultyQuestionAnalytics,
+  // New endpoints below
+  getTextAnswersByFaculty: async (req, res) => {
+    try {
+      const { formId, questionId, course, year, semester, subject, activationPeriod, facultyId, page = 1, limit = 50 } = req.query;
+
+      if (!formId || !questionId) {
+        return res.status(400).json({ message: 'formId and questionId are required' });
+      }
+
+      // Build base filter
+      const filter = {};
+      if (formId) filter['subjectResponses.form'] = formId;
+      if (course) filter['courseInfo.course'] = course;
+      if (year) filter['courseInfo.year'] = parseInt(year);
+      if (semester) filter['courseInfo.semester'] = parseInt(semester);
+      if (subject) filter['subjectResponses.subject'] = subject;
+      if (activationPeriod) {
+        const form = await FeedbackForm.findById(formId);
+        if (form && form.activationPeriods) {
+          const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+          if (period) {
+            if (period.end) {
+              filter.submittedAt = { $gte: period.start, $lte: period.end };
+            } else {
+              filter.submittedAt = { $gte: period.start };
+            }
+          }
+        }
+      }
+
+      // Fetch and populate needed data
+      const responses = await Response.find(filter)
+        .populate({
+          path: 'subjectResponses.subject',
+          populate: { path: 'faculty', model: 'Faculty' }
+        })
+        .populate('subjectResponses.form')
+        .sort({ submittedAt: -1 });
+
+      // Group by faculty → collect text answers for the given question only
+      const grouped = {};
+
+      responses.forEach(resp => {
+        const { studentInfo } = resp;
+        resp.subjectResponses.forEach(sr => {
+          if (!sr.form) return;
+          const srFormId = sr.form._id ? sr.form._id.toString() : sr.form.toString();
+          if (srFormId !== formId) return;
+          if (!sr.subject || !sr.subject.faculty) return;
+
+          const qIndex = sr.questions.findIndex(q => q.questionId.toString() === questionId);
+          if (qIndex === -1) return;
+
+          const answer = sr.answers[qIndex];
+          const question = sr.questions[qIndex];
+          const qType = question?.questionType || 'text';
+          if (!answer || (qType !== 'text' && qType !== 'textarea')) return;
+
+          const fid = sr.subject.faculty._id.toString();
+          if (facultyId && fid !== facultyId) return;
+
+          if (!grouped[fid]) {
+            grouped[fid] = {
+              faculty: sr.subject.faculty,
+              answers: []
+            };
+          }
+
+          grouped[fid].answers.push({
+            answer: String(answer),
+            rollNumber: studentInfo?.rollNumber || '',
+            submittedAt: resp.submittedAt,
+            subjectName: sr.subject?.subjectName || ''
+          });
+        });
+      });
+
+      // Pagination per faculty: slice answers after grouping
+      const result = Object.values(grouped).map(group => {
+        const total = group.answers.length;
+        const p = parseInt(page);
+        const l = parseInt(limit);
+        const start = (p - 1) * l;
+        const end = start + l;
+        return {
+          faculty: group.faculty,
+          total,
+          page: p,
+          limit: l,
+          hasMore: end < total,
+          answers: group.answers.slice(start, end)
+        };
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error('Get text answers by faculty error:', err);
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+  exportTextAnswersCSV: async (req, res) => {
+    try {
+      const { formId, questionId, course, year, semester, subject, activationPeriod, facultyId } = req.query;
+      if (!formId || !questionId) {
+        return res.status(400).json({ message: 'formId and questionId are required' });
+      }
+
+      const filter = {};
+      if (formId) filter['subjectResponses.form'] = formId;
+      if (course) filter['courseInfo.course'] = course;
+      if (year) filter['courseInfo.year'] = parseInt(year);
+      if (semester) filter['courseInfo.semester'] = parseInt(semester);
+      if (subject) filter['subjectResponses.subject'] = subject;
+      if (activationPeriod) {
+        const form = await FeedbackForm.findById(formId);
+        if (form && form.activationPeriods) {
+          const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+          if (period) {
+            if (period.end) {
+              filter.submittedAt = { $gte: period.start, $lte: period.end };
+            } else {
+              filter.submittedAt = { $gte: period.start };
+            }
+          }
+        }
+      }
+
+      const responses = await Response.find(filter)
+        .populate({
+          path: 'subjectResponses.subject',
+          populate: { path: 'faculty', model: 'Faculty' }
+        })
+        .populate('subjectResponses.form')
+        .sort({ submittedAt: -1 });
+
+      let rows = [];
+      responses.forEach(resp => {
+        const { studentInfo } = resp;
+        resp.subjectResponses.forEach(sr => {
+          if (!sr.form) return;
+          const srFormId = sr.form._id ? sr.form._id.toString() : sr.form.toString();
+          if (srFormId !== formId) return;
+          if (!sr.subject || !sr.subject.faculty) return;
+
+          const qIndex = sr.questions.findIndex(q => q.questionId.toString() === questionId);
+          if (qIndex === -1) return;
+
+          const answer = sr.answers[qIndex];
+          const question = sr.questions[qIndex];
+          const qType = question?.questionType || 'text';
+          if (!answer || (qType !== 'text' && qType !== 'textarea')) return;
+
+          const fid = sr.subject.faculty._id.toString();
+          if (facultyId && fid !== facultyId) return;
+
+          rows.push({
+            facultyName: sr.subject.faculty.name,
+            rollNumber: studentInfo?.rollNumber || '',
+            subjectName: sr.subject?.subjectName || '',
+            submittedAt: resp.submittedAt,
+            answer: String(answer)
+          });
+        });
+      });
+
+      // Build CSV
+      let csv = 'Faculty,Roll Number,Subject,Submitted At,Answer\n';
+      rows.forEach(r => {
+        const vals = [r.facultyName, r.rollNumber, r.subjectName, new Date(r.submittedAt).toISOString(), r.answer]
+          .map(v => '"' + String(v).replace(/"/g, '""') + '"');
+        csv += vals.join(',') + '\n';
+      });
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=text_answers.csv');
+      res.send(csv);
+    } catch (err) {
+      console.error('Export text answers CSV error:', err);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
 };

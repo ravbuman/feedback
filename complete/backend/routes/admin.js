@@ -23,6 +23,7 @@ router.post('/faculty', [
   body('designation').trim().notEmpty(),
   body('department').trim().notEmpty()
 ], adminController.createFaculty);
+router.post('/faculty/bulk-upload', auth, adminController.bulkUploadFaculty);
 router.put('/faculty/:id', [
   auth,
   body('name').optional().trim().notEmpty(),
@@ -53,7 +54,7 @@ router.post('/subjects', [
   body('subjectName').trim().notEmpty(),
   body('course').isMongoId(),
   body('year').isInt({ min: 1, max: 4 }),
-  body('semester').isInt({ min: 1, max: 8 }),
+  body('semester').isInt({ min: 1, max: 2 }),
   body('faculty').optional().isMongoId()
 ], adminController.createSubject);
 router.put('/subjects/:id', [
@@ -61,7 +62,7 @@ router.put('/subjects/:id', [
   body('subjectName').optional().trim().notEmpty(),
   body('course').optional().isMongoId(),
   body('year').optional().isInt({ min: 1, max: 4 }),
-  body('semester').optional().isInt({ min: 1, max: 8 }),
+  body('semester').optional().isInt({ min: 1, max: 2 }),
   body('faculty').optional().isMongoId()
 ], adminController.updateSubject);
 router.delete('/subjects/:id', auth, adminController.deleteSubject);

@@ -33,6 +33,28 @@ const StudentFeedbackSubmission = () => {
   const [subjects, setSubjects] = useState([]);
   const [responses, setResponses] = useState({});
   const [activeSubject, setActiveSubject] = useState(null); // accordion state
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+
+  const STORAGE_KEY = 'submittedFormIds';
+  const getSubmittedFormIds = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+  const recordFormSubmission = (id) => {
+    const existing = getSubmittedFormIds();
+    const filtered = existing.filter(f => f !== id);
+    filtered.push(id);
+    if (filtered.length > 10) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([id]));
+      return;
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+  };
 
   const {
     register,
@@ -81,6 +103,10 @@ const StudentFeedbackSubmission = () => {
 
       setFeedbackForm(formData);
       setCourses(coursesRes.data);
+      const submitted = getSubmittedFormIds();
+      if (submitted.includes(formId)) {
+        setAlreadySubmitted(true);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load feedback form');
@@ -190,6 +216,7 @@ const StudentFeedbackSubmission = () => {
 
       await studentAPI.submitFeedback(submissionData);
       toast.success('Feedback submitted successfully! Thank you for your input.');
+      recordFormSubmission(formId);
       navigate('/');
     } catch (error) {
       console.error('Error submitting responses:', error);
@@ -358,6 +385,11 @@ const StudentFeedbackSubmission = () => {
           {feedbackForm.description && (
             <p className="mt-2 text-base md:text-lg text-gray-600">{feedbackForm.description}</p>
           )}
+          {alreadySubmitted && (
+            <div className="mt-4 inline-block bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-3 py-2">
+              You have already submitted this form from this device.
+            </div>
+          )}
         </div>
 
         {/* Progress Steps */}
@@ -502,12 +534,6 @@ const StudentFeedbackSubmission = () => {
                     <option value="">Select semester</option>
                     <option value={1}>Semester 1</option>
                     <option value={2}>Semester 2</option>
-                    <option value={3}>Semester 3</option>
-                    <option value={4}>Semester 4</option>
-                    <option value={5}>Semester 5</option>
-                    <option value={6}>Semester 6</option>
-                    <option value={7}>Semester 7</option>
-                    <option value={8}>Semester 8</option>
                   </select>
                   {errors.semester && (
                     <p className="mt-1 text-sm text-red-600">{errors.semester.message}</p>

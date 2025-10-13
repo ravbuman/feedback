@@ -570,5 +570,92 @@ module.exports = {
   deleteFeedbackForm,
   activateFeedbackForm,
   deactivateFeedbackForm,
-  getFormAnalytics
+  getFormAnalytics,
+  // Added below
+  bulkUploadFaculty: async (req, res) => {
+    try {
+      const { items } = req.body;
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ message: 'No items provided' });
+      }
+
+      // Fetch once to map courseName -> _id
+      const courses = await Course.find({ isActive: true });
+      const courseByName = new Map(courses.map(c => [c.courseName.toLowerCase(), c]));
+
+      const results = [];
+      for (const item of items) {
+        const name = item.name?.trim();
+        const phoneNumber = item.phoneNumber?.trim();
+        const designation = item.designation?.trim();
+        const department = item.department?.trim();
+        const subjectInfo = item.subject || {};
+
+        if (!name || !phoneNumber || !designation || !department) {
+          results.push({ phoneNumber, status: 'skipped', reason: 'Missing required fields' });
+          continue;
+        }
+
+        // Upsert faculty by phoneNumber
+        let faculty = await Faculty.findOneAndUpdate(
+          { phoneNumber },
+          { name, designation, department, isActive: true },
+          { new: true }
+        );
+        if (!faculty) {
+          faculty = await Faculty.create({ name, phoneNumber, designation, department });
+        }
+
+        // Subject handling
+        const courseName = (subjectInfo.courseName || department || '').toString();
+        const course = courseByName.get(courseName.toLowerCase());
+        if (!course) {
+          results.push({ phoneNumber, status: 'partial', reason: `Course not found: ${courseName}` });
+          continue;
+        }
+
+        const year = parseInt(subjectInfo.year, 10);
+        const semesterParsed = parseInt(subjectInfo.semester, 10);
+        const semester = !isNaN(semesterParsed) && semesterParsed >= 1 && semesterParsed <= 2 ? semesterParsed : null;
+        if (!subjectInfo.name || !year || !semester) {
+          // Skip subject creation/assignment if info insufficient; faculty was upserted already
+          results.push({ phoneNumber, status: 'ok', facultyId: faculty._id, note: 'Subject skipped due to incomplete year/semester/name' });
+          continue;
+        }
+
+        // Find existing subject
+        let subject = await Subject.findOne({
+          course: course._id,
+          year,
+          semester,
+          subjectName: subjectInfo.name,
+          isActive: true,
+        });
+
+        if (!subject) {
+          subject = await Subject.create({
+            subjectName: subjectInfo.name,
+            course: course._id,
+            year,
+            semester,
+            faculty: faculty._id,
+          });
+        } else {
+          // Assign to faculty if not already
+          subject.faculty = faculty._id;
+          await subject.save();
+        }
+
+        // Ensure faculty.subjects contains subject
+        await Faculty.findByIdAndUpdate(faculty._id, { $addToSet: { subjects: subject._id } });
+
+        results.push({ phoneNumber, status: 'ok', facultyId: faculty._id, subjectId: subject._id });
+      }
+
+      res.json({ results });
+    } catch (error) {
+      console.error('Bulk upload faculty error:', error);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
 };

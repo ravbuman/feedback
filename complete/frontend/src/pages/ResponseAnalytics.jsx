@@ -31,6 +31,7 @@ const ResponseAnalytics = () => {
   const [activationPeriods, setActivationPeriods] = useState([]);
   const [showPieCharts, setShowPieCharts] = useState(false);
   const [showCompareModal, setShowCompareModal] = useState(false);
+  const [textAnswersByQuestion, setTextAnswersByQuestion] = useState({});
   const [filters, setFilters] = useState({
     course: '',
     year: '',
@@ -39,6 +40,34 @@ const ResponseAnalytics = () => {
     activationPeriod: ''
   });
   const navigate = useNavigate();
+
+  const AnswerBox = ({ data }) => {
+    const [expanded, setExpanded] = useState(false);
+    const charLimit = 200;
+    const isLong = (data?.answer?.length || 0) > charLimit;
+    return (
+      <div className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+        <div className="flex flex-wrap items-center justify-between text-xs text-gray-600 mb-2 gap-2">
+          <span className="font-mono">{data.rollNumber || '-'}</span>
+          <span>{data.subjectName || '-'}</span>
+          <span>{new Date(data.submittedAt).toLocaleString()}</span>
+        </div>
+        <div className={`text-sm break-words break-all whitespace-pre-wrap relative ${(!isLong || expanded) ? '' : 'max-h-40 overflow-hidden pr-2'}`}>
+          {data.answer}
+          {isLong && !expanded && (
+            <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none"></div>
+          )}
+        </div>
+        {isLong && (
+          <div className="mt-2 text-right">
+            <button className="text-royal-600 text-xs font-bold hover:text-royal-900" onClick={() => setExpanded(e => !e)}>
+              {expanded ? 'Collapse' : 'Expand'}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -132,6 +161,29 @@ const ResponseAnalytics = () => {
         setLoadingFacultyAnalytics(false);
       }
     }
+  };
+
+  const loadTextAnswersForQuestion = async (questionId, facultyId = null, page = 1) => {
+    const baseParams = { formId: selectedForm, ...filters, questionId, page, limit: 50 };
+    if (facultyId) baseParams.facultyId = facultyId;
+    const res = await responseAPI.getTextAnswersByFaculty(baseParams);
+    // Store per question
+    setTextAnswersByQuestion(prev => ({ ...prev, [questionId]: res.data }));
+    return res.data;
+  };
+
+  const exportTextAnswers = async (questionId, facultyId = '') => {
+    const params = { formId: selectedForm, ...filters, questionId };
+    if (facultyId) params.facultyId = facultyId;
+    const blobRes = await responseAPI.exportTextAnswersCSV(params);
+    const url = window.URL.createObjectURL(new Blob([blobRes.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `text_answers_${questionId}${facultyId ? '_' + facultyId : ''}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
   };
 
   const handleCompare = async (selectedPeriods) => {
@@ -416,7 +468,7 @@ const ResponseAnalytics = () => {
               className="input w-full"
             >
               <option value="">All Semesters</option>
-              {[...Array(8)].map((_, i) => (
+              {[...Array(2)].map((_, i) => (
                 <option key={i + 1} value={i + 1}>{i + 1}{['st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'th'][i]} Semester</option>
               ))}
             </select>
@@ -636,6 +688,7 @@ const ResponseAnalytics = () => {
             ) : (
               // Regular view showing faculty breakdown (no Overall row)
               analytics.questionAnalytics.map((question, index) => {
+                const isText = question.questionType === 'text' || question.questionType === 'textarea';
                 const facultyBreakdown = (facultyAnalytics && facultyAnalytics.length > 0)
                   ? facultyAnalytics.map(facultyData => {
                       const questionAnalysis = facultyData.questionAnalytics.find(
@@ -650,16 +703,80 @@ const ResponseAnalytics = () => {
                   : [];
 
                 return (
-                  <QuestionFacultyAnalytics
-                    key={question.questionId}
-                    question={question}
-                    facultyBreakdown={facultyBreakdown}
-                    showCharts={showPieCharts}
-                    isPeriodComparison={false}
-                  />
+                  <div key={question.questionId} className="space-y-4">
+                    <QuestionFacultyAnalytics
+                      question={question}
+                      facultyBreakdown={facultyBreakdown}
+                      showCharts={showPieCharts}
+                      isPeriodComparison={false}
+                    />
+
+                    {isText && (
+                      <div className="bg-white rounded-lg p-4 border border-gray-200">
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-base font-semibold text-gray-900">Raw Text Answers</h4>
+                          <div className="flex gap-2">
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => loadTextAnswersForQuestion(question.questionId)}
+                            >
+                              Load Answers
+                            </button>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={() => exportTextAnswers(question.questionId)}
+                            >
+                              Export CSV (All Faculties)
+                            </button>
+                          </div>
+                        </div>
+                        <div className="divide-y">
+                          {(textAnswersByQuestion[question.questionId] || []).length === 0 ? (
+                            <p className="text-sm text-gray-500">No data loaded yet.</p>
+                          ) : (
+                            (textAnswersByQuestion[question.questionId] || []).map(group => (
+                              <details key={group.faculty._id} className="py-3">
+                                <summary className="cursor-pointer flex items-center justify-between">
+                                  <span className="font-medium">{group.faculty.name}</span>
+                                  <span className="text-xs text-gray-500">{group.total} answers</span>
+                                </summary>
+                                <div className="mt-3 space-y-3">
+                                  <div className="flex justify-end gap-2">
+                                    <button className="btn btn-secondary btn-sm" onClick={() => exportTextAnswers(question.questionId, group.faculty._id)}>Export CSV</button>
+                                    {group.hasMore && (
+                                      <button
+                                        className="btn btn-outline btn-sm"
+                                        onClick={async () => {
+                                          const nextPage = (group.page || 1) + 1;
+                                          const more = await loadTextAnswersForQuestion(question.questionId, group.faculty._id, nextPage);
+                                          setTextAnswersByQuestion(prev => {
+                                            const current = prev[question.questionId] || [];
+                                            const updated = current.map(g => g.faculty._id === group.faculty._id ? more.find(m => m.faculty._id === g.faculty._id) || g : g);
+                                            return { ...prev, [question.questionId]: updated };
+                                          });
+                                        }}
+                                      >
+                                        Load More
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {group.answers.map((a, idx) => (
+                                      <AnswerBox key={idx} data={a} />
+                                    ))}
+                                  </div>
+                                </div>
+                              </details>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 );
               })
             )}
+            {/* Old standalone text answers section removed; now integrated under each question card */}
           </div>
         </div>
       ) : (

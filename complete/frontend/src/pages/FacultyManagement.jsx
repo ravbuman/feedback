@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { adminAPI } from '../services/api';
 import CreateFacultyModal from '../components/Modals/CreateFacultyModal';
+import BulkUploadFacultyModal from '../components/Modals/BulkUploadFacultyModal';
 import EditFacultyModal from '../components/Modals/EditFacultyModal';
 import DeleteConfirmModal from '../components/Modals/DeleteConfirmModal';
 import toast from 'react-hot-toast';
@@ -29,6 +30,7 @@ const FacultyManagement = () => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showBulkUploadModal, setShowBulkUploadModal] = useState(false);
   const [selectedFaculty, setSelectedFaculty] = useState(null);
   const navigate = useNavigate();
 
@@ -126,13 +128,21 @@ const FacultyManagement = () => {
             <p className="text-sm md:text-base text-gray-600">Manage faculty members and their information</p>
           </div>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="btn btn-primary md:btn-lg w-full md:w-auto"
-        >
-          <Plus className="h-5 w-5 md:h-5 md:w-5 mr-2" />
-          Add Faculty
-        </button>
+        <div className="flex gap-2 w-full md:w-auto">
+          <button
+            onClick={() => setShowBulkUploadModal(true)}
+            className="btn btn-outline md:btn-lg w-full md:w-auto"
+          >
+            Bulk Upload
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="btn btn-primary md:btn-lg w-full md:w-auto"
+          >
+            <Plus className="h-5 w-5 md:h-5 md:w-5 mr-2" />
+            Add Faculty
+          </button>
+        </div>
       </div>
 
       {/* Search and Filter */}
@@ -327,6 +337,11 @@ const FacultyManagement = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={handleCreateSuccess}
+      />
+
+      <BulkUploadFacultyModal
+        isOpen={showBulkUploadModal}
+        onClose={() => setShowBulkUploadModal(false)}
       />
 
       <EditFacultyModal
