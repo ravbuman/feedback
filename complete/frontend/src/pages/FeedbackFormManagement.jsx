@@ -22,7 +22,8 @@ import {
   Power,
   PowerOff,
   History,
-  ArrowLeft
+  ArrowLeft,
+  Globe
 } from 'lucide-react';
 import { adminAPI, responseAPI } from '../services/api';
 import toast from 'react-hot-toast';
@@ -107,8 +108,8 @@ const FeedbackFormManagement = () => {
   };
 
   const handleDeleteSuccess = () => {
-    setForms(prev => prev.map(f => f._id === selectedForm._id ? { ...f, isActive: false } : f));
-    toast.success('Feedback form deactivated successfully!');
+    setForms(prev => prev.filter(f => f._id !== selectedForm._id));
+    toast.success('Feedback form deleted successfully!');
   };
 
   const handleActivation = async (form, action) => {
@@ -206,8 +207,8 @@ const FeedbackFormManagement = () => {
       setShowDeleteModal(false);
       setSelectedForm(null);
     } catch (error) {
-      console.error('Error deactivating form:', error);
-      toast.error('Failed to deactivate feedback form');
+      console.error('Error deleting form:', error);
+      toast.error('Failed to delete feedback form');
     }
   };
 
@@ -349,14 +350,25 @@ const FeedbackFormManagement = () => {
                           </div>
                         </div>
                         <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">
+                          <div className="flex items-center text-sm font-medium text-gray-900">
                             {form.formName}
+                            {form.isGlobal && (
+                              <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                <Globe className="h-3 w-3 mr-1" />
+                                Global
+                              </span>
+                            )}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {form.description || 'No description'}
+                            {form.isGlobal ? form.trainingName : (form.description || 'No description')}
                           </div>
                           <div className="text-xs text-gray-400">
                             ID: {form._id.slice(-8)}
+                            {form.isGlobal && form.assignedFaculty?.length > 0 && (
+                              <span className="ml-2">
+                                • {form.assignedFaculty.length} faculty assigned
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -443,7 +455,7 @@ const FeedbackFormManagement = () => {
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDelete(form); }}
                           className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50 transition-colors"
-                          title="Archive form"
+                          title="Delete form"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -531,9 +543,9 @@ const FeedbackFormManagement = () => {
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         onConfirm={confirmDelete}
-        title="Archive Feedback Form"
-        message={`Are you sure you want to archive "${selectedForm?.formName}"? This will make it inactive and prevent new submissions.`}
-        confirmText="Archive"
+        title="Delete Feedback Form"
+        message={`Are you sure you want to permanently delete "${selectedForm?.formName}"? This will delete the form and all related responses. This action cannot be undone.`}
+        confirmText="Delete"
         loading={false}
       />
 

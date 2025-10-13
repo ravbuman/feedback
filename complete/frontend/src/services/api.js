@@ -99,6 +99,9 @@ export const adminAPI = {
   updateSubject: (id, data) => api.put(`/admin/subjects/${id}`, data),
   deleteSubject: (id) => api.delete(`/admin/subjects/${id}`),
 
+  // Faculty Bulk Upload
+  bulkUploadFaculty: (payload) => api.post('/admin/faculty/bulk-upload', payload),
+
   // Feedback Forms
   getFeedbackForms: () => api.get('/admin/feedback-forms'),
   createFeedbackForm: (data) => api.post('/admin/feedback-forms', data),
@@ -115,6 +118,8 @@ export const responseAPI = {
   getResponse: (id) => api.get(`/responses/${id}`),
   getQuestionAnalytics: (params) => api.get('/responses/analytics/questions', { params }),
   getFacultyQuestionAnalytics: (params) => api.get('/responses/analytics/faculty-questions', { params }),
+  getTextAnswersByFaculty: (params) => api.get('/responses/analytics/text-answers', { params }),
+  exportTextAnswersCSV: (params) => api.get('/responses/analytics/text-answers/export', { params, responseType: 'blob' }),
   getStats: (params) => api.get('/responses/stats/overview', { params }),
   getFacultyPerformance: (params) => api.get('/responses/stats/faculty-performance', { params }),
   exportCSV: (params) => api.get('/responses/export/csv', { params, responseType: 'blob' }),

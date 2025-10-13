@@ -22,6 +22,12 @@ router.get('/stats/overview', auth, responseController.getResponseStats);
 // Get faculty performance analysis
 router.get('/stats/faculty-performance', auth, responseController.getFacultyPerformance);
 
+// Get raw text answers per question grouped by faculty (with optional facultyId and pagination)
+router.get('/analytics/text-answers', auth, responseController.getTextAnswersByFaculty);
+
+// Export raw text answers CSV
+router.get('/analytics/text-answers/export', auth, responseController.exportTextAnswersCSV);
+
 // Export responses to CSV
 router.get('/export/csv', auth, responseController.exportToCSV);
 

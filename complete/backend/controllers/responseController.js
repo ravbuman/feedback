@@ -88,11 +88,14 @@ const getQuestionAnalytics = async (req, res) => {
   try {
     const { formId, subjectId, courseId, year, semester, activationPeriod } = req.query;
 
+    // Also accept 'subject' and 'course' keys for compatibility with frontend
+    const { subject: subjectParam, course: courseParam } = req.query;
+
     // Build filter
     const filter = {};
     if (formId) filter['subjectResponses.form'] = formId;
-    if (subjectId) filter['subjectResponses.subject'] = subjectId;
-    if (courseId) filter['courseInfo.course'] = courseId;
+    if (subjectId || subjectParam) filter['subjectResponses.subject'] = subjectId || subjectParam;
+    if (courseId || courseParam) filter['courseInfo.course'] = courseId || courseParam;
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
     if (activationPeriod) {
@@ -100,7 +103,12 @@ const getQuestionAnalytics = async (req, res) => {
       if (form && form.activationPeriods) {
         const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
         if (period) {
-          filter['submittedAt'] = { $gte: period.start, $lte: period.end };
+          // If end is not set (active period), only apply lower bound
+          if (period.end) {
+            filter['submittedAt'] = { $gte: period.start, $lte: period.end };
+          } else {
+            filter['submittedAt'] = { $gte: period.start };
+          }
         }
       }
     }
@@ -110,9 +118,8 @@ const getQuestionAnalytics = async (req, res) => {
       .populate('subjectResponses.subject', 'subjectName')
       .populate('courseInfo.course', 'courseName courseCode');
 
-    if (responses.length === 0) {
-      return res.status(404).json({ message: 'No responses found for this form' });
-    }
+    // Do not return 404 for no responses; return an empty analytics payload so UI can handle gracefully
+    const noResponses = responses.length === 0;
 
     const form = await FeedbackForm.findById(formId);
     if (!form) {
@@ -215,20 +222,25 @@ const getQuestionAnalytics = async (req, res) => {
     responses.forEach(response => {
       response.subjectResponses.forEach(subjectResponse => {
         if (subjectResponse.form.toString() === formId) {
-          allSubjects.add(subjectResponse.subject._id.toString());
+          if (subjectResponse.subject && subjectResponse.subject._id) {
+            allSubjects.add(subjectResponse.subject._id.toString());
+          }
         }
       });
     });
 
+    const subjectsCount = (form && form.isGlobal) ? 1 : allSubjects.size;
+
     const formStats = {
       totalResponses: responses.length,
       uniqueStudents: new Set(responses.map(r => r.studentInfo.rollNumber)).size,
-      subjects: allSubjects.size,
+      subjects: subjectsCount,
       courses: [...new Set(responses.map(r => r.courseInfo.course._id.toString()))].length,
       averageCompletionTime: responses.length > 0 ?
         responses.reduce((sum, r) => sum + (new Date(r.submittedAt) - new Date(r.createdAt)), 0) / responses.length : 0
     };
 
+    // If no responses, still return a valid structure with zeroed stats and empty per-question analytics
     res.json({
       form: {
         _id: formId,
@@ -237,7 +249,13 @@ const getQuestionAnalytics = async (req, res) => {
         totalQuestions: questions.length
       },
       formStats,
-      questionAnalytics
+      questionAnalytics: noResponses ? questions.map(q => ({
+        questionId: q._id,
+        questionText: q.questionText,
+        questionType: q.questionType,
+        totalResponses: 0,
+        responseRate: 0
+      })) : questionAnalytics
     });
   } catch (error) {
     console.error('Get question analytics error:', error);
@@ -265,10 +283,10 @@ const getResponseStats = async (req, res) => {
       recentSubmissions,
     ] = await Promise.all([
       Response.countDocuments(filter),
-      Faculty.countDocuments(),
-      Subject.countDocuments(),
-      Course.countDocuments(),
-      FeedbackForm.countDocuments(),
+      Faculty.countDocuments({ isActive: { $ne: false } }),
+      Subject.countDocuments({ isActive: { $ne: false } }),
+      Course.countDocuments({ isActive: { $ne: false } }),
+      FeedbackForm.countDocuments({ isActive: { $ne: false } }),
       Response.countDocuments({
         ...filter,
         submittedAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
@@ -452,6 +470,16 @@ const exportToCSV = async (req, res) => {
 
     const questions = firstSubjectResponse.questions;
 
+    // If we have a formId, fetch form to detect global/trainingName for fallbacks
+    let formDoc = null;
+    if (formId) {
+      try {
+        formDoc = await FeedbackForm.findById(formId);
+      } catch (e) {
+        formDoc = null;
+      }
+    }
+
     // Create CSV headers
     let csv = 'Student Name,Phone Number,Roll Number,Course,Year,Semester,Subject,Submitted At';
 
@@ -465,6 +493,7 @@ const exportToCSV = async (req, res) => {
     responses.forEach(response => {
       response.subjectResponses.forEach(subjectResponse => {
         if (subjectResponse.form.toString() === formId) {
+          const subjectName = subjectResponse.subject?.subjectName || (formDoc?.isGlobal ? formDoc.trainingName : 'Unknown Subject');
           const baseData = [
             `"${response.studentInfo.name}"`,
             `"${response.studentInfo.phoneNumber || ''}"`,
@@ -472,7 +501,7 @@ const exportToCSV = async (req, res) => {
             `"${response.courseInfo.course.courseName}"`,
             response.courseInfo.year,
             response.courseInfo.semester,
-            `"${subjectResponse.subject.subjectName}"`,
+            `"${subjectName}"`,
             response.submittedAt
           ];
 
@@ -542,7 +571,11 @@ const getFacultyQuestionAnalytics = async (req, res) => {
       if (form && form.activationPeriods) {
         const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
         if (period) {
-          filter.submittedAt = { $gte: period.start, $lte: period.end };
+          if (period.end) {
+            filter.submittedAt = { $gte: period.start, $lte: period.end };
+          } else {
+            filter.submittedAt = { $gte: period.start };
+          }
         }
       }
     }
@@ -640,7 +673,98 @@ const getFacultyQuestionAnalytics = async (req, res) => {
     };
 
 
-    // Process analytics for each faculty
+    // If form is global, aggregate overall analytics instead of faculty-wise (since subjects may not be linked to faculty)
+    if (form.isGlobal) {
+      // Collect all subjectResponses for this form across all responses
+      const allSubjectResponses = [];
+      responses.forEach(r => {
+        r.subjectResponses.forEach(sr => {
+          if (!sr.form) return;
+          const formIdFromSr = sr.form._id ? sr.form._id.toString() : sr.form.toString();
+          if (formIdFromSr === formId) {
+            allSubjectResponses.push(sr);
+          }
+        });
+      });
+
+      const overallQuestionAnalytics = questions.map((question, index) => {
+        const answers = allSubjectResponses.map(sr => sr.answers[index]).filter(a => a !== undefined && a !== null);
+
+        let analyticsData = {};
+        switch (question.questionType) {
+          case 'scale': {
+            const scaleValues = answers.map(a => parseInt(a)).filter(v => !isNaN(v));
+            if (scaleValues.length > 0) {
+              analyticsData = {
+                average: scaleValues.reduce((s, v) => s + v, 0) / scaleValues.length,
+              };
+            }
+            break;
+          }
+          case 'yesno': {
+            const yesCount = answers.filter(a => a === 'yes' || a === true).length;
+            const noCount = answers.filter(a => a === 'no' || a === false).length;
+            const total = yesCount + noCount;
+            if (total > 0) {
+              analyticsData = {
+                yesPercentage: (yesCount / total) * 100,
+                noPercentage: (noCount / total) * 100,
+              };
+            }
+            break;
+          }
+          case 'multiplechoice': {
+            const choiceCounts = answers.flat().reduce((acc, choice) => {
+              acc[choice] = (acc[choice] || 0) + 1;
+              return acc;
+            }, {});
+            analyticsData = { choiceCounts };
+            break;
+          }
+          case 'text':
+          case 'textarea': {
+            const allWords = answers.join(' ').toLowerCase().split(/\s+/).filter(w => w.length > 1 && !stopWords.has(w));
+            const stemmedWords = allWords.map(w => stemmer(w));
+            const wordCounts = stemmedWords.reduce((acc, word) => {
+              acc[word] = (acc[word] || 0) + 1;
+              return acc;
+            }, {});
+            const frequentWords = Object.entries(wordCounts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 5)
+              .map(([word, count]) => ({ word, count }));
+            analyticsData = { frequentWords };
+            break;
+          }
+          default:
+            break;
+        }
+
+        return {
+          questionId: question._id,
+          questionText: question.questionText,
+          questionType: question.questionType,
+          analytics: analyticsData,
+        };
+      });
+
+      const subjectNames = [...new Set(allSubjectResponses.map(sr => sr.subject?.subjectName).filter(Boolean))];
+
+      return res.json([
+        {
+          faculty: {
+            _id: 'overall',
+            name: form.trainingName || 'Overall',
+            designation: '',
+            department: ''
+          },
+          subjects: subjectNames.length > 0 ? subjectNames : [form.trainingName || 'Global'],
+          questionAnalytics: overallQuestionAnalytics,
+        }
+      ]);
+    }
+
+    // Process analytics for each faculty for non-global forms
     const result = Object.values(facultyData).map(data => {
       const { faculty, responses } = data;
 
@@ -724,5 +848,186 @@ module.exports = {
   exportToCSV,
   getFacultyPerformance,
   deleteResponse,
-  getFacultyQuestionAnalytics
+  getFacultyQuestionAnalytics,
+  // New endpoints below
+  getTextAnswersByFaculty: async (req, res) => {
+    try {
+      const { formId, questionId, course, year, semester, subject, activationPeriod, facultyId, page = 1, limit = 50 } = req.query;
+
+      if (!formId || !questionId) {
+        return res.status(400).json({ message: 'formId and questionId are required' });
+      }
+
+      // Build base filter
+      const filter = {};
+      if (formId) filter['subjectResponses.form'] = formId;
+      if (course) filter['courseInfo.course'] = course;
+      if (year) filter['courseInfo.year'] = parseInt(year);
+      if (semester) filter['courseInfo.semester'] = parseInt(semester);
+      if (subject) filter['subjectResponses.subject'] = subject;
+      if (activationPeriod) {
+        const form = await FeedbackForm.findById(formId);
+        if (form && form.activationPeriods) {
+          const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+          if (period) {
+            if (period.end) {
+              filter.submittedAt = { $gte: period.start, $lte: period.end };
+            } else {
+              filter.submittedAt = { $gte: period.start };
+            }
+          }
+        }
+      }
+
+      // Fetch and populate needed data
+      const responses = await Response.find(filter)
+        .populate({
+          path: 'subjectResponses.subject',
+          populate: { path: 'faculty', model: 'Faculty' }
+        })
+        .populate('subjectResponses.form')
+        .sort({ submittedAt: -1 });
+
+      // Group by faculty → collect text answers for the given question only
+      const grouped = {};
+
+      responses.forEach(resp => {
+        const { studentInfo } = resp;
+        resp.subjectResponses.forEach(sr => {
+          if (!sr.form) return;
+          const srFormId = sr.form._id ? sr.form._id.toString() : sr.form.toString();
+          if (srFormId !== formId) return;
+          if (!sr.subject || !sr.subject.faculty) return;
+
+          const qIndex = sr.questions.findIndex(q => q.questionId.toString() === questionId);
+          if (qIndex === -1) return;
+
+          const answer = sr.answers[qIndex];
+          const question = sr.questions[qIndex];
+          const qType = question?.questionType || 'text';
+          if (!answer || (qType !== 'text' && qType !== 'textarea')) return;
+
+          const fid = sr.subject.faculty._id.toString();
+          if (facultyId && fid !== facultyId) return;
+
+          if (!grouped[fid]) {
+            grouped[fid] = {
+              faculty: sr.subject.faculty,
+              answers: []
+            };
+          }
+
+          grouped[fid].answers.push({
+            answer: String(answer),
+            rollNumber: studentInfo?.rollNumber || '',
+            submittedAt: resp.submittedAt,
+            subjectName: sr.subject?.subjectName || ''
+          });
+        });
+      });
+
+      // Pagination per faculty: slice answers after grouping
+      const result = Object.values(grouped).map(group => {
+        const total = group.answers.length;
+        const p = parseInt(page);
+        const l = parseInt(limit);
+        const start = (p - 1) * l;
+        const end = start + l;
+        return {
+          faculty: group.faculty,
+          total,
+          page: p,
+          limit: l,
+          hasMore: end < total,
+          answers: group.answers.slice(start, end)
+        };
+      });
+
+      res.json(result);
+    } catch (err) {
+      console.error('Get text answers by faculty error:', err);
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
+  exportTextAnswersCSV: async (req, res) => {
+    try {
+      const { formId, questionId, course, year, semester, subject, activationPeriod, facultyId } = req.query;
+      if (!formId || !questionId) {
+        return res.status(400).json({ message: 'formId and questionId are required' });
+      }
+
+      const filter = {};
+      if (formId) filter['subjectResponses.form'] = formId;
+      if (course) filter['courseInfo.course'] = course;
+      if (year) filter['courseInfo.year'] = parseInt(year);
+      if (semester) filter['courseInfo.semester'] = parseInt(semester);
+      if (subject) filter['subjectResponses.subject'] = subject;
+      if (activationPeriod) {
+        const form = await FeedbackForm.findById(formId);
+        if (form && form.activationPeriods) {
+          const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+          if (period) {
+            if (period.end) {
+              filter.submittedAt = { $gte: period.start, $lte: period.end };
+            } else {
+              filter.submittedAt = { $gte: period.start };
+            }
+          }
+        }
+      }
+
+      const responses = await Response.find(filter)
+        .populate({
+          path: 'subjectResponses.subject',
+          populate: { path: 'faculty', model: 'Faculty' }
+        })
+        .populate('subjectResponses.form')
+        .sort({ submittedAt: -1 });
+
+      let rows = [];
+      responses.forEach(resp => {
+        const { studentInfo } = resp;
+        resp.subjectResponses.forEach(sr => {
+          if (!sr.form) return;
+          const srFormId = sr.form._id ? sr.form._id.toString() : sr.form.toString();
+          if (srFormId !== formId) return;
+          if (!sr.subject || !sr.subject.faculty) return;
+
+          const qIndex = sr.questions.findIndex(q => q.questionId.toString() === questionId);
+          if (qIndex === -1) return;
+
+          const answer = sr.answers[qIndex];
+          const question = sr.questions[qIndex];
+          const qType = question?.questionType || 'text';
+          if (!answer || (qType !== 'text' && qType !== 'textarea')) return;
+
+          const fid = sr.subject.faculty._id.toString();
+          if (facultyId && fid !== facultyId) return;
+
+          rows.push({
+            facultyName: sr.subject.faculty.name,
+            rollNumber: studentInfo?.rollNumber || '',
+            subjectName: sr.subject?.subjectName || '',
+            submittedAt: resp.submittedAt,
+            answer: String(answer)
+          });
+        });
+      });
+
+      // Build CSV
+      let csv = 'Faculty,Roll Number,Subject,Submitted At,Answer\n';
+      rows.forEach(r => {
+        const vals = [r.facultyName, r.rollNumber, r.subjectName, new Date(r.submittedAt).toISOString(), r.answer]
+          .map(v => '"' + String(v).replace(/"/g, '""') + '"');
+        csv += vals.join(',') + '\n';
+      });
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=text_answers.csv');
+      res.send(csv);
+    } catch (err) {
+      console.error('Export text answers CSV error:', err);
+      res.status(500).json({ message: 'Server error' });
+    }
+  }
 };

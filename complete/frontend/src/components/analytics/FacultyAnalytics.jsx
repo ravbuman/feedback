@@ -150,7 +150,7 @@ const FacultyAnalytics = ({ data, questions, showCharts }) => {
               aggregatedData,
               question.questionText,
               question.questionType,
-              question._id
+              question.questionId
             );
           })}
         </div>
@@ -163,7 +163,7 @@ const FacultyAnalytics = ({ data, questions, showCharts }) => {
                   Faculty / Subject
                 </th>
                 {questions?.map((question) => (
-                  <th key={question._id} scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th key={question.questionId} scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     {question.questionText}
                   </th>
                 ))}
@@ -179,7 +179,7 @@ const FacultyAnalytics = ({ data, questions, showCharts }) => {
                   {questions.map((question) => {
                     const analytics = facultyData.questionAnalytics.find(qa => qa.questionId === question.questionId);
                     return (
-                      <td key={question.questionId} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td key={`qa-${question.questionId}`} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {analytics ? renderAnalyticsCell(analytics) : <span className="text-gray-400">N/A</span>}
                       </td>
                     );

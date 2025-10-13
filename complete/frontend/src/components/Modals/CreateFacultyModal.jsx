@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { X, User, Phone, Briefcase, Building, Loader2 } from 'lucide-react';
 import { adminAPI } from '../../services/api';
@@ -16,6 +16,37 @@ const CreateFacultyModal = ({ isOpen, onClose, onSuccess }) => {
     setError,
     clearErrors
   } = useForm();
+
+  // Courses for dynamic department dropdown
+  const [courses, setCourses] = useState([]);
+  const [coursesLoading, setCoursesLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        setCoursesLoading(true);
+        const response = await adminAPI.getCourses();
+        const fetched = Array.isArray(response?.data) ? response.data : [];
+        // Use unique course names, keep only active courses if flag present (default include all)
+        const uniqueNames = [...new Set(
+          fetched
+            .filter(c => c && (c.isActive !== false))
+            .map(c => c.courseName)
+            .filter(Boolean)
+        )].sort();
+        setCourses(uniqueNames);
+      } catch (err) {
+        console.error('Error fetching courses for department dropdown:', err);
+        setCourses([]);
+      } finally {
+        setCoursesLoading(false);
+      }
+    };
+
+    if (isOpen) {
+      fetchCourses();
+    }
+  }, [isOpen]);
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -175,20 +206,14 @@ const CreateFacultyModal = ({ isOpen, onClose, onSuccess }) => {
             <select
               {...register('department', { required: 'Department is required' })}
               className={`input ${errors.department ? 'border-red-300 focus:ring-red-500' : ''}`}
+              disabled={coursesLoading}
             >
-              <option value="">Select department</option>
-              <option value="Computer Science">Computer Science</option>
-              <option value="Information Technology">Information Technology</option>
-              <option value="Electronics & Communication">Electronics & Communication</option>
-              <option value="Mechanical Engineering">Mechanical Engineering</option>
-              <option value="Civil Engineering">Civil Engineering</option>
-              <option value="Electrical Engineering">Electrical Engineering</option>
-              <option value="Mathematics">Mathematics</option>
-              <option value="Physics">Physics</option>
-              <option value="Chemistry">Chemistry</option>
-              <option value="English">English</option>
-              <option value="Management Studies">Management Studies</option>
-              <option value="Commerce">Commerce</option>
+              <option value="">
+                {coursesLoading ? 'Loading departments...' : 'Select department'}
+              </option>
+              {courses.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
               <option value="Other">Other</option>
             </select>
             {errors.department && (

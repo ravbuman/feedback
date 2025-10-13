@@ -53,7 +53,20 @@ const feedbackFormSchema = new mongoose.Schema({
   createdBy: {
     type: String,
     default: 'admin'
-  }
+  },
+  // Global form fields
+  isGlobal: {
+    type: Boolean,
+    default: false
+  },
+  trainingName: {
+    type: String,
+    trim: true
+  },
+  assignedFaculty: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Faculty'
+  }]
 }, {
   timestamps: true
 });

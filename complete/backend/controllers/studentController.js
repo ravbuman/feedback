@@ -86,6 +86,12 @@ const getSubjectsByCourse = async (req, res) => {
 // Get feedback form by ID
 const getFeedbackForm = async (req, res) => {
   try {
+    // Validate ObjectId format
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(req.params.formId)) {
+      return res.status(400).json({ message: 'Invalid form ID format' });
+    }
+
     const form = await FeedbackForm.findById(req.params.formId);
 
     if (!form) {
@@ -108,8 +114,15 @@ const getFeedbackForm = async (req, res) => {
       return res.status(400).json({ message: 'This feedback form is not currently in an active period.' });
     }
 
+    // Populate assignedFaculty only if it exists and has values
+    let populatedForm = form;
+    if (form.assignedFaculty && form.assignedFaculty.length > 0) {
+      populatedForm = await FeedbackForm.findById(req.params.formId)
+        .populate('assignedFaculty', 'name designation department');
+    }
+
     const formResponse = {
-      ...form.toObject(),
+      ...populatedForm.toObject(),
       currentPeriod: activePeriod
     };
 
@@ -163,6 +176,10 @@ const submitFeedback = async (req, res) => {
     // Check validation results
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.warn('[submitFeedback] Validation failed', {
+        errors: errors.array(),
+        bodyKeys: Object.keys(req.body || {})
+      });
       return res.status(400).json({
         message: 'Validation failed',
         errors: errors.array()
@@ -170,6 +187,14 @@ const submitFeedback = async (req, res) => {
     }
 
     const { studentInfo, courseInfo, subjectResponses, formId } = req.body;
+    console.log('[submitFeedback] Incoming payload', {
+      formId,
+      studentRoll: studentInfo?.rollNumber,
+      course: courseInfo?.course,
+      year: courseInfo?.year,
+      semester: courseInfo?.semester,
+      subjectsCount: Array.isArray(subjectResponses) ? subjectResponses.length : 0
+    });
 
     // Validate ObjectIds
     const mongoose = require('mongoose');
@@ -191,23 +216,33 @@ const submitFeedback = async (req, res) => {
     // Get the feedback form and check the current period
     const feedbackForm = await FeedbackForm.findById(formId);
     if (!feedbackForm) {
+      console.warn('[submitFeedback] Form not found', { formId });
       return res.status(404).json({ message: 'Feedback form not found' });
     }
 
-    // Find the current active period
+    // Find the latest active period (choose the one with the most recent start)
     const currentDate = new Date();
-    const activePeriod = feedbackForm.activationPeriods.find(period => {
+    const matchingPeriods = (feedbackForm.activationPeriods || []).filter(period => {
       const startDate = new Date(period.start);
       const endDate = period.end ? new Date(period.end) : null;
       return startDate <= currentDate && (!endDate || endDate >= currentDate);
     });
+    const activePeriod = matchingPeriods.length > 0
+      ? matchingPeriods.reduce((latest, p) => (new Date(p.start) > new Date(latest.start) ? p : latest))
+      : null;
 
     if (!activePeriod) {
+      console.warn('[submitFeedback] No active period', {
+        formId,
+        isActive: feedbackForm.isActive,
+        activationPeriodsCount: feedbackForm.activationPeriods?.length || 0,
+        now: currentDate.toISOString(),
+      });
       return res.status(400).json({ message: 'This feedback form is not currently in an active period' });
     }
 
     // Check if student has already submitted feedback for this form in the current period
-    const existingResponse = await Response.findOne({
+    const duplicateQuery = {
       'studentInfo.rollNumber': studentInfo.rollNumber,
       'courseInfo.course': courseInfo.course,
       'courseInfo.year': courseInfo.year,
@@ -217,9 +252,21 @@ const submitFeedback = async (req, res) => {
         { 'period.end': { $exists: false } },
         { 'period.end': activePeriod.end }
       ]
+    };
+    console.log('[submitFeedback] Duplicate check query', {
+      ...duplicateQuery,
+      'period.start': activePeriod.start?.toISOString?.() || activePeriod.start,
+      'period.end': activePeriod.end ? (activePeriod.end?.toISOString?.() || activePeriod.end) : null
     });
+    const existingResponse = await Response.findOne(duplicateQuery);
 
     if (existingResponse) {
+      console.warn('[submitFeedback] Duplicate found for current period', {
+        responseId: existingResponse._id,
+        periodStart: existingResponse.period?.start,
+        periodEnd: existingResponse.period?.end,
+        formId
+      });
       return res.status(400).json({ message: 'Feedback already submitted for this course, year, and semester' });
     }
 
@@ -291,6 +338,7 @@ const submitFeedback = async (req, res) => {
       { path: 'subjectResponses.form', select: 'formName' }
     ]);
 
+    console.log('[submitFeedback] Submission saved', { responseId: savedResponse._id, formId });
     res.status(201).json({
       message: 'Responses submitted successfully',
       response: savedResponse
@@ -298,6 +346,7 @@ const submitFeedback = async (req, res) => {
   } catch (error) {
     if (error.name === 'ValidationError') {
     }
+    console.error('[submitFeedback] Server error', { message: error.message, name: error.name, stack: error.stack });
     res.status(500).json({
       message: 'Server error',
       error: error.message,

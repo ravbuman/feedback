@@ -33,6 +33,28 @@ const StudentFeedbackSubmission = () => {
   const [subjects, setSubjects] = useState([]);
   const [responses, setResponses] = useState({});
   const [activeSubject, setActiveSubject] = useState(null); // accordion state
+  const [alreadySubmitted, setAlreadySubmitted] = useState(false);
+
+  const STORAGE_KEY = 'submittedFormIds';
+  const getSubmittedFormIds = () => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+  const recordFormSubmission = (id) => {
+    const existing = getSubmittedFormIds();
+    const filtered = existing.filter(f => f !== id);
+    filtered.push(id);
+    if (filtered.length > 10) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([id]));
+      return;
+    }
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+  };
 
   const {
     register,
@@ -81,6 +103,10 @@ const StudentFeedbackSubmission = () => {
 
       setFeedbackForm(formData);
       setCourses(coursesRes.data);
+      const submitted = getSubmittedFormIds();
+      if (submitted.includes(formId)) {
+        setAlreadySubmitted(true);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Failed to load feedback form');
@@ -92,8 +118,25 @@ const StudentFeedbackSubmission = () => {
 
   const fetchSubjects = async (courseId, year, semester) => {
     try {
-      const response = await studentAPI.getSubjectsByCourse(courseId, year, semester);
-      setSubjects(response.data);
+      if (feedbackForm?.isGlobal) {
+        // For global forms, create a virtual training subject
+        const trainingSubject = {
+          // Use the formId as a stable ObjectId-like subject id for global forms
+          _id: formId,
+          subjectName: feedbackForm.trainingName,
+          course: courseId,
+          year: parseInt(year),
+          semester: parseInt(semester),
+          // Use a single faculty object so UI can render name consistently
+          faculty: feedbackForm.assignedFaculty?.[0] || null,
+          isGlobal: true
+        };
+        setSubjects([trainingSubject]);
+      } else {
+        // For regular forms, fetch actual subjects
+        const response = await studentAPI.getSubjectsByCourse(courseId, year, semester);
+        setSubjects(response.data);
+      }
     } catch (error) {
       console.error('Error fetching subjects:', error);
       toast.error('Failed to load subjects');
@@ -157,9 +200,15 @@ const StudentFeedbackSubmission = () => {
             }
           }
 
+          // For global forms, use the form's assigned faculty
+          const facultyId = feedbackForm?.isGlobal && feedbackForm.assignedFaculty?.length > 0 
+            ? feedbackForm.assignedFaculty[0]._id 
+            : subjects.find(s => s._id === subjectId)?.faculty?._id;
+
           return {
             subject: subjectId,
             form: formId,
+            faculty: facultyId,
             answersWithQuestions: answersWithQuestions
           };
         })
@@ -167,10 +216,12 @@ const StudentFeedbackSubmission = () => {
 
       await studentAPI.submitFeedback(submissionData);
       toast.success('Feedback submitted successfully! Thank you for your input.');
+      recordFormSubmission(formId);
       navigate('/');
     } catch (error) {
       console.error('Error submitting responses:', error);
-      toast.error('Failed to submit feedback. Please try again.');
+      const serverMsg = error.response?.data?.message || error.message || 'Failed to submit feedback';
+      toast.error(serverMsg);
     } finally {
       setSubmitting(false);
     }
@@ -334,6 +385,11 @@ const StudentFeedbackSubmission = () => {
           {feedbackForm.description && (
             <p className="mt-2 text-base md:text-lg text-gray-600">{feedbackForm.description}</p>
           )}
+          {alreadySubmitted && (
+            <div className="mt-4 inline-block bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-3 py-2">
+              You have already submitted this form from this device.
+            </div>
+          )}
         </div>
 
         {/* Progress Steps */}
@@ -478,12 +534,6 @@ const StudentFeedbackSubmission = () => {
                     <option value="">Select semester</option>
                     <option value={1}>Semester 1</option>
                     <option value={2}>Semester 2</option>
-                    <option value={3}>Semester 3</option>
-                    <option value={4}>Semester 4</option>
-                    <option value={5}>Semester 5</option>
-                    <option value={6}>Semester 6</option>
-                    <option value={7}>Semester 7</option>
-                    <option value={8}>Semester 8</option>
                   </select>
                   {errors.semester && (
                     <p className="mt-1 text-sm text-red-600">{errors.semester.message}</p>

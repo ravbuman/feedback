@@ -75,20 +75,47 @@ const StudentFeedback = () => {
 
     if (course && year && semester) {
       try {
-        const response = await studentAPI.getSubjectsByCourse(course, year, semester);
-        setSubjects(response.data);
+        if (form?.isGlobal) {
+          // For global forms, create a virtual training subject
+          const trainingSubject = {
+            _id: 'global-training',
+            subjectName: form.trainingName,
+            course: course,
+            year: parseInt(year),
+            semester: parseInt(semester),
+            faculty: form.assignedFaculty,
+            isGlobal: true
+          };
+          setSubjects([trainingSubject]);
 
-        // Initialize subject responses
-        const subjectResponses = response.data.map(subject => ({
-          subject: subject._id,
-          faculty: subject.faculty?._id,
-          answers: form.questions.map(q => ({ questionId: q._id, answer: '' }))
-        }));
+          // Initialize subject responses for global form
+          const subjectResponses = [{
+            subject: 'global-training',
+            faculty: form.assignedFaculty?.length > 0 ? form.assignedFaculty[0]._id : null,
+            answers: form.questions.map(q => ({ questionId: q._id, answer: '' }))
+          }];
 
-        setFormData(prev => ({
-          ...prev,
-          subjectResponses,
-        }));
+          setFormData(prev => ({
+            ...prev,
+            subjectResponses,
+          }));
+        } else {
+          // For regular forms, fetch actual subjects
+          const response = await studentAPI.getSubjectsByCourse(course, year, semester);
+          setSubjects(response.data);
+
+          // Initialize subject responses
+          const subjectResponses = response.data.map(subject => ({
+            subject: subject._id,
+            faculty: subject.faculty?._id,
+            answers: form.questions.map(q => ({ questionId: q._id, answer: '' }))
+          }));
+
+          setFormData(prev => ({
+            ...prev,
+            subjectResponses,
+          }));
+        }
       } catch (error) {
         console.error('Error fetching subjects:', error);
         toast.error('Failed to load subjects for the selected criteria');
