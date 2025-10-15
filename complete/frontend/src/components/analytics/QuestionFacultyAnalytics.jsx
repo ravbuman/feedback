@@ -12,7 +12,7 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showCharts, isPe
     isPeriodComparison,
     periodLabels
   });
-  
+
   // Ensure analytics data is properly structured
   const processedFacultyBreakdown = facultyBreakdown.map(item => ({
     ...item,
@@ -88,12 +88,12 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showCharts, isPe
 
   const getChartData = (analyticsData = {}) => {
     let chartData = [];
-    
+
     switch (question.questionType) {
       case 'scale':
         const distribution = analyticsData.distribution || analyticsData.scale?.distribution;
         const average = analyticsData.average || analyticsData.scale?.average;
-        
+
         if (distribution && Object.keys(distribution).length > 0) {
           chartData = Object.entries(distribution).map(([label, value]) => ({
             label: `Rating ${label}`,
@@ -148,50 +148,37 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showCharts, isPe
     return chartData.filter(item => item.value > 0);
   };
 
-    const renderChart = (data, title, questionType, key, isPeriodComparison = false, facultyData = null, periodLabels = []) => {
+  const renderChart = (data, title, questionType, key, isPeriodComparison = false, facultyData = null, periodLabels = []) => {
     if (isPeriodComparison && facultyData) {
       // Create separate chart for each faculty
       const facultyCharts = facultyData.map(faculty => {
         // Get this faculty's values across periods
         const values = faculty.facultyAnalytics.map(period => {
           if (!period) return 0;
-          
+
           switch (questionType) {
             case 'scale':
-              return (period.analytics && typeof period.analytics.average === 'number')
-                ? period.analytics.average
-                : (period.scale && typeof period.scale.average === 'number')
-                  ? period.scale.average
-                  : 0;
+              return period.analytics.average || period.scale.average || 0;
             case 'yesno':
-              return (period.analytics && typeof period.analytics.yesPercentage === 'number')
-                ? period.analytics.yesPercentage
-                : 0;
+              return period.analytics.yesPercentage || 0;
             case 'multiplechoice':
-              const counts = (period.analytics && period.analytics.choiceCounts)
-                ? (Array.isArray(period.analytics.choiceCounts)
-                    ? period.analytics.choiceCounts.reduce((acc, item) => {
-                        acc[item.choice] = item.count;
-                        return acc;
-                      }, {})
-                    : period.analytics.choiceCounts)
-                : {};
-              const valuesArray = Object.values(counts);
-              const maxCount = valuesArray.length > 0 ? Math.max(...valuesArray) : 0;
+              const counts = period.analytics.choiceCounts || {};
+              const maxCount = Math.max(...Object.values(counts));
               return maxCount || 0;
             default:
               return 0;
           }
         });
 
-        // Do not skip completely; allow zero-lines to render to avoid fallback UI
+        // Skip if all values are zero
+        if (values.every(v => v === 0)) return null;
 
         const facultyData = [{
           label: 'Rating',  // Single line per chart, so just label it 'Rating'
           values: values,
-          maxValue: questionType === 'scale' ? 5 : 
-                   questionType === 'yesno' ? 100 : 
-                   Math.max(...values) * 1.2
+          maxValue: questionType === 'scale' ? 5 :
+            questionType === 'yesno' ? 100 :
+              Math.max(...values) * 1.2
         }];
 
         return (
@@ -201,7 +188,7 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showCharts, isPe
               <div className="text-xs text-gray-500">{faculty.subjects.join(', ')}</div>
             </div>
             <div className="h-[200px]">
-              <LineChart 
+              <LineChart
                 data={facultyData}
                 title={`${title} - ${faculty.faculty.name}`}
                 xLabels={periodLabels}
@@ -215,9 +202,6 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showCharts, isPe
       if (facultyCharts.length > 0) {
         return facultyCharts;
       }
-
-      // If no charts could be built, return a benign placeholder instead of falling back
-      return <div key={`${key}-no-data`} className="text-sm text-gray-500">No data to chart for selected periods.</div>;
     }
 
     // Fallback for non-comparison mode
@@ -242,7 +226,7 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showCharts, isPe
 
       {showCharts ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {isPeriodComparison ? 
+          {isPeriodComparison ?
             renderChart(
               null,
               question.questionText,
@@ -252,18 +236,18 @@ const QuestionFacultyAnalytics = ({ question, facultyBreakdown, showCharts, isPe
               processedFacultyBreakdown,
               periodLabels
             )
-          : processedFacultyBreakdown?.map((item, index) => {
-            const chartData = getChartData(item.analytics);
-            return renderChart(
-              chartData,
-              question.questionText,
-              question.questionType,
-              `${question._id}-${index}`,
-              false,
-              null,
-              null
-            );
-          })}
+            : processedFacultyBreakdown?.map((item, index) => {
+              const chartData = getChartData(item.analytics);
+              return renderChart(
+                chartData,
+                question.questionText,
+                question.questionType,
+                `${question._id}-${index}`,
+                false,
+                null,
+                null
+              );
+            })}
         </div>
       ) : (
         <div className="overflow-x-auto">

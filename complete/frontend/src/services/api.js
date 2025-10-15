@@ -119,6 +119,7 @@ export const responseAPI = {
   getQuestionAnalytics: (params) => api.get('/responses/analytics/questions', { params }),
   getFacultyQuestionAnalytics: (params) => api.get('/responses/analytics/faculty-questions', { params }),
   getTextAnswersByFaculty: (params) => api.get('/responses/analytics/text-answers', { params }),
+  getTextAnswers: (params) => api.get('/responses/analytics/text-answers', { params }),
   exportTextAnswersCSV: (params) => api.get('/responses/analytics/text-answers/export', { params, responseType: 'blob' }),
   getStats: (params) => api.get('/responses/stats/overview', { params }),
   getFacultyPerformance: (params) => api.get('/responses/stats/faculty-performance', { params }),

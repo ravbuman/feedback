@@ -61,10 +61,10 @@ const LineChart = ({ data, title, xLabels, singleFaculty = false }) => {
         mode: 'index',
         intersect: false,
         callbacks: {
-          title: function(context) {
+          title: function (context) {
             return context[0].label;
           },
-          label: function(context) {
+          label: function (context) {
             const value = context.parsed.y;
             if (data[0].maxValue === 5) {
               return `Rating: ${value.toFixed(1)}`;
@@ -88,9 +88,9 @@ const LineChart = ({ data, title, xLabels, singleFaculty = false }) => {
         beginAtZero: true,
         max: data[0]?.maxValue || 5,
         ticks: {
-          stepSize: data[0]?.maxValue === 5 ? 1 : 
-                    data[0]?.maxValue === 100 ? 20 : 
-                    undefined,
+          stepSize: data[0]?.maxValue === 5 ? 1 :
+            data[0]?.maxValue === 100 ? 20 :
+              undefined,
           font: {
             size: 10
           }

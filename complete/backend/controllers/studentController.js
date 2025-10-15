@@ -104,11 +104,16 @@ const getFeedbackForm = async (req, res) => {
 
     // Check if there is a currently active period
     const currentDate = new Date();
-    const activePeriod = form.activationPeriods.find(period => {
+    const activePeriods = (form.activationPeriods || []).filter(period => {
       const startDate = new Date(period.start);
       const endDate = period.end ? new Date(period.end) : null;
       return startDate <= currentDate && (!endDate || endDate >= currentDate);
     });
+
+    // Pick the most recent one (latest start date)
+    const activePeriod = activePeriods.length > 0
+      ? activePeriods.reduce((latest, p) => (new Date(p.start) > new Date(latest.start) ? p : latest))
+      : null;
 
     if (!activePeriod) {
       return res.status(400).json({ message: 'This feedback form is not currently in an active period.' });
@@ -123,7 +128,11 @@ const getFeedbackForm = async (req, res) => {
 
     const formResponse = {
       ...populatedForm.toObject(),
-      currentPeriod: activePeriod
+      currentPeriod: {
+        _id: activePeriod._id,       // expose the MongoDB subdocument id
+        start: activePeriod.start,
+        end: activePeriod.end
+      }
     };
 
     res.json(formResponse);
