@@ -327,7 +327,7 @@ const ResponseAnalytics = () => {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6">
+    <div className="p-6 bg-gray-50 min-h-screen space-y-6">
       {/* Header */}
       <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div className="flex items-center gap-x-4">
@@ -691,15 +691,15 @@ const ResponseAnalytics = () => {
                 const isText = question.questionType === 'text' || question.questionType === 'textarea';
                 const facultyBreakdown = (facultyAnalytics && facultyAnalytics.length > 0)
                   ? facultyAnalytics.map(facultyData => {
-                      const questionAnalysis = facultyData.questionAnalytics.find(
-                        qa => qa.questionId === question.questionId
-                      );
-                      return {
-                        faculty: facultyData.faculty,
-                        subjects: facultyData.subjects,
-                        analytics: questionAnalysis?.analytics || {}
-                      };
-                    })
+                    const questionAnalysis = facultyData.questionAnalytics.find(
+                      qa => qa.questionId === question.questionId
+                    );
+                    return {
+                      faculty: facultyData.faculty,
+                      subjects: facultyData.subjects,
+                      analytics: questionAnalysis?.analytics || {}
+                    };
+                  })
                   : [];
 
                 return (

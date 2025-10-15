@@ -15,7 +15,7 @@ const ComparePeriodModal = ({ isOpen, onClose, activationPeriods, onCompare }) =
   const handlePeriodToggle = (periodStart) => {
     if (periodStart === 'all') {
       // If all is selected, select all periods
-      setSelectedPeriods(selectedPeriods.length === activationPeriods.length ? 
+      setSelectedPeriods(selectedPeriods.length === activationPeriods.length ?
         [] : activationPeriods.map(p => p.start));
       return;
     }
@@ -99,8 +99,8 @@ const ComparePeriodModal = ({ isOpen, onClose, activationPeriods, onCompare }) =
             onClick={handleCompare}
             disabled={selectedPeriods.length < 2}
             className={`px-4 py-2 rounded-md ${selectedPeriods.length >= 2
-                ? 'bg-royal-600 text-white hover:bg-royal-700'
-                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              ? 'bg-royal-600 text-white hover:bg-royal-700'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               } transition-colors`}
           >
             Compare {selectedPeriods.length} Periods

@@ -123,7 +123,7 @@ const getQuestionAnalytics = async (req, res) => {
 
     const form = await FeedbackForm.findById(formId);
     if (!form) {
-        return res.status(404).json({ message: 'Feedback form not found' });
+      return res.status(404).json({ message: 'Feedback form not found' });
     }
     const questions = form.questions;
 
@@ -136,7 +136,7 @@ const getQuestionAnalytics = async (req, res) => {
           if (subjectResponse.form.toString() === formId) {
             const responseQuestionIndex = subjectResponse.questions.findIndex(q => q.questionId.toString() === question._id.toString());
             if (responseQuestionIndex !== -1 && subjectResponse.answers[responseQuestionIndex] !== undefined) {
-                questionResponses.push(subjectResponse.answers[responseQuestionIndex]);
+              questionResponses.push(subjectResponse.answers[responseQuestionIndex]);
             }
           }
         });
@@ -246,7 +246,8 @@ const getQuestionAnalytics = async (req, res) => {
         _id: formId,
         formName: form ? form.formName : 'Unknown Form',
         description: form ? form.description : '',
-        totalQuestions: questions.length
+        totalQuestions: questions.length,
+        isGlobal: form ? form.isGlobal : false
       },
       formStats,
       questionAnalytics: noResponses ? questions.map(q => ({
@@ -615,61 +616,61 @@ const getFacultyQuestionAnalytics = async (req, res) => {
 
     const form = await FeedbackForm.findById(formId);
     if (!form) {
-        return res.status(404).json({ message: 'Feedback form not found' });
+      return res.status(404).json({ message: 'Feedback form not found' });
     }
     const questions = form.questions;
 
     const stopWords = new Set([
-        'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'aren\'t', 'as', 'at',
-        'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by',
-        'can\'t', 'cannot', 'could', 'couldn\'t', 'did', 'didn\'t', 'do', 'does', 'doesn\'t', 'doing', 'don\'t', 'down', 'during',
-        'each', 'few', 'for', 'from', 'further', 'had', 'hadn\'t', 'has', 'hasn\'t', 'have', 'haven\'t', 'having', 'he', 'he\'d',
-        'he\'ll', 'he\'s', 'her', 'here', 'here\'s', 'hers', 'herself', 'him', 'himself', 'his', 'how', 'how\'s',
-        'i', 'i\'d', 'i\'ll', 'i\'m', 'i\'ve', 'if', 'in', 'into', 'is', 'isn\'t', 'it', 'it\'s', 'its', 'itself',
-        'let\'s', 'me', 'more', 'most', 'mustn\'t', 'my', 'myself',
-        'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours', 'ourselves', 'out', 'over', 'own',
-        'same', 'shan\'t', 'she', 'she\'d', 'she\'ll', 'she\'s', 'should', 'shouldn\'t', 'so', 'some', 'such',
-        'than', 'that', 'that\'s', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', 'there\'s', 'these', 'they', 'they\'d',
-        'they\'ll', 'they\'re', 'they\'ve', 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very',
-        'was', 'wasn\'t', 'we', 'we\'d', 'we\'ll', 'we\'re', 'we\'ve', 'were', 'weren\'t', 'what', 'what\'s', 'when', 'when\'s', 'where',
-        'where\'s', 'which', 'while', 'who', 'who\'s', 'whom', 'why', 'why\'s', 'with', 'won\'t', 'would', 'wouldn\'t',
-        'you', 'you\'d', 'you\'ll', 'you\'re', 'you\'ve', 'your', 'yours', 'yourself', 'yourselves',
-        'good', 'bad', 'ok', 'okay', 'nice'
+      'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'aren\'t', 'as', 'at',
+      'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by',
+      'can\'t', 'cannot', 'could', 'couldn\'t', 'did', 'didn\'t', 'do', 'does', 'doesn\'t', 'doing', 'don\'t', 'down', 'during',
+      'each', 'few', 'for', 'from', 'further', 'had', 'hadn\'t', 'has', 'hasn\'t', 'have', 'haven\'t', 'having', 'he', 'he\'d',
+      'he\'ll', 'he\'s', 'her', 'here', 'here\'s', 'hers', 'herself', 'him', 'himself', 'his', 'how', 'how\'s',
+      'i', 'i\'d', 'i\'ll', 'i\'m', 'i\'ve', 'if', 'in', 'into', 'is', 'isn\'t', 'it', 'it\'s', 'its', 'itself',
+      'let\'s', 'me', 'more', 'most', 'mustn\'t', 'my', 'myself',
+      'no', 'nor', 'not', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours', 'ourselves', 'out', 'over', 'own',
+      'same', 'shan\'t', 'she', 'she\'d', 'she\'ll', 'she\'s', 'should', 'shouldn\'t', 'so', 'some', 'such',
+      'than', 'that', 'that\'s', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', 'there\'s', 'these', 'they', 'they\'d',
+      'they\'ll', 'they\'re', 'they\'ve', 'this', 'those', 'through', 'to', 'too', 'under', 'until', 'up', 'very',
+      'was', 'wasn\'t', 'we', 'we\'d', 'we\'ll', 'we\'re', 'we\'ve', 'were', 'weren\'t', 'what', 'what\'s', 'when', 'when\'s', 'where',
+      'where\'s', 'which', 'while', 'who', 'who\'s', 'whom', 'why', 'why\'s', 'with', 'won\'t', 'would', 'wouldn\'t',
+      'you', 'you\'d', 'you\'ll', 'you\'re', 'you\'ve', 'your', 'yours', 'yourself', 'yourselves',
+      'good', 'bad', 'ok', 'okay', 'nice'
     ]);
 
     const stemmer = (word) => {
-        const step1 = (w) => {
-            if (w.endsWith('sses')) return w.slice(0, -2);
-            if (w.endsWith('ies')) return w.slice(0, -2) + 'i';
-            if (w.endsWith('ss')) return w;
-            if (w.endsWith('s')) return w.slice(0, -1);
-            return w;
-        };
+      const step1 = (w) => {
+        if (w.endsWith('sses')) return w.slice(0, -2);
+        if (w.endsWith('ies')) return w.slice(0, -2) + 'i';
+        if (w.endsWith('ss')) return w;
+        if (w.endsWith('s')) return w.slice(0, -1);
+        return w;
+      };
 
-        const step2 = (w) => {
-            if (w.endsWith('eed')) return w.slice(0, -1);
-            if (w.endsWith('ed') && w.length > 3) {
-                const stem = w.slice(0, -2);
-                if (/[aeiou]/.test(stem)) {
-                    if (['at', 'bl', 'iz'].includes(stem.slice(-2))) return stem + 'e';
-                    if (/(.)\1$/.test(stem) && !['l', 's', 'z'].includes(stem.slice(-1))) return stem.slice(0, -1);
-                    return stem;
-                }
-            }
-            if (w.endsWith('ing') && w.length > 4) {
-                const stem = w.slice(0, -3);
-                if (/[aeiou]/.test(stem)) {
-                    if (['at', 'bl', 'iz'].includes(stem.slice(-2))) return stem + 'e';
-                    if (/(.)\1$/.test(stem) && !['l', 's', 'z'].includes(stem.slice(-1))) return stem.slice(0, -1);
-                    return stem;
-                }
-            }
-            return w;
-        };
+      const step2 = (w) => {
+        if (w.endsWith('eed')) return w.slice(0, -1);
+        if (w.endsWith('ed') && w.length > 3) {
+          const stem = w.slice(0, -2);
+          if (/[aeiou]/.test(stem)) {
+            if (['at', 'bl', 'iz'].includes(stem.slice(-2))) return stem + 'e';
+            if (/(.)\1$/.test(stem) && !['l', 's', 'z'].includes(stem.slice(-1))) return stem.slice(0, -1);
+            return stem;
+          }
+        }
+        if (w.endsWith('ing') && w.length > 4) {
+          const stem = w.slice(0, -3);
+          if (/[aeiou]/.test(stem)) {
+            if (['at', 'bl', 'iz'].includes(stem.slice(-2))) return stem + 'e';
+            if (/(.)\1$/.test(stem) && !['l', 's', 'z'].includes(stem.slice(-1))) return stem.slice(0, -1);
+            return stem;
+          }
+        }
+        return w;
+      };
 
-        let stemmed = step1(word);
-        stemmed = step2(stemmed);
-        return stemmed;
+      let stemmed = step1(word);
+      stemmed = step2(stemmed);
+      return stemmed;
     };
 
 
@@ -849,6 +850,83 @@ module.exports = {
   getFacultyPerformance,
   deleteResponse,
   getFacultyQuestionAnalytics,
+  getTextAnswers: async (req, res) => {
+    try {
+      const { formId, questionId, course, year, semester, activationPeriod, page = 1, limit = 50 } = req.query;
+
+      if (!formId || !questionId) {
+        return res.status(400).json({ message: 'formId and questionId are required' });
+      }
+
+      const filter = {};
+      if (formId) filter['subjectResponses.form'] = new mongoose.Types.ObjectId(formId);
+      if (course) filter['courseInfo.course'] = course;
+      if (year) filter['courseInfo.year'] = parseInt(year);
+      if (semester) filter['courseInfo.semester'] = parseInt(semester);
+      if (activationPeriod) {
+        const form = await FeedbackForm.findById(formId);
+        if (form && form.activationPeriods) {
+          const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+          if (period) {
+            if (period.end) {
+              filter.submittedAt = { $gte: period.start, $lte: period.end };
+            } else {
+              filter.submittedAt = { $gte: period.start };
+            }
+          }
+        }
+      }
+
+      const responses = await Response.find(filter)
+        .populate('subjectResponses.subject', 'subjectName')
+        .sort({ submittedAt: -1 });
+
+      const allAnswers = [];
+      responses.forEach(resp => {
+        const { studentInfo } = resp;
+        resp.subjectResponses.forEach(sr => {
+          // For global forms, the form ID is directly on the subjectResponse.
+          // The `populate` might make `sr.form` an object, so we check `sr.form` and `sr.form._id`.
+          const srFormId = sr.form?._id ? sr.form._id.toString() : sr.form.toString();
+          if (srFormId !== formId) {
+            return;
+          }
+
+          const qIndex = sr.questions.findIndex(q => q.questionId.toString() === questionId);
+          if (qIndex === -1) return;
+
+          const answer = sr.answers[qIndex];
+          const question = sr.questions[qIndex];
+          const qType = question?.questionType || 'text';
+          if (!answer || (qType !== 'text' && qType !== 'textarea')) return;
+
+          allAnswers.push({
+            answer: String(answer),
+            rollNumber: studentInfo?.rollNumber || '',
+            submittedAt: resp.submittedAt,
+            subjectName: sr.subject?.subjectName || 'Global Form'
+          });
+        });
+      });
+
+      const total = allAnswers.length;
+      const p = parseInt(page);
+      const l = parseInt(limit);
+      const start = (p - 1) * l;
+      const end = start + l;
+
+      res.json({
+        total,
+        page: p,
+        limit: l,
+        hasMore: end < total,
+        answers: allAnswers.slice(start, end)
+      });
+    } catch (err) {
+      console.error('Get text answers error:', err);
+      res.status(500).json({ message: 'Server error' });
+    }
+  },
   // New endpoints below
   getTextAnswersByFaculty: async (req, res) => {
     try {
