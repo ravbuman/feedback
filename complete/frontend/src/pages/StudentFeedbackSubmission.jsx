@@ -564,7 +564,8 @@ const StudentFeedbackSubmission = () => {
                             type="text"
                             {...register('rollNumber', {
                               required: 'Roll number is required', validate: (value) =>
-                                /^[0-9]{3}[a-zA-Z][0-9][a-zA-Z][0-9]{4}$/.test(value) ||
+                                /^[0-9]{3}[a-zA-Z][0-9][a-zA-Z][0-9]{2}[a-zA-Z0-9][0-9]$/
+                                  .test(value) ||
                                 'Roll number must match 236T1A0508 format',
                             })}
 
