@@ -31,7 +31,7 @@ const parseCSV = async (file) => {
   return { headers, rows };
 };
 
-const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
+const BulkUploadFacultyModal = ({ isOpen, onClose, onSuccess }) => {
   const [uploading, setUploading] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [fileName, setFileName] = useState('');
@@ -101,9 +101,12 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
     return missing;
   }, [headers]);
 
-  const findCourseByName = (name) => courses.find(c => c.name?.toLowerCase() === (name || '').toLowerCase());
+  const findCourseByNameOrCode = (nameOrCode) => {
+    const term = (nameOrCode || '').toLowerCase();
+    return courses.find(c => c.name?.toLowerCase() === term || c.code?.toLowerCase() === term);
+  };
   const findSubjectMatch = (subjectName, courseName, year, semester) => {
-    const course = findCourseByName(courseName);
+    const course = findCourseByNameOrCode(courseName);
     return subjects.find(s => {
       const sCourse = typeof s.course === 'object' ? (s.course.courseName || s.course.name) : s.course;
       const sCourseName = (sCourse || '').toString().toLowerCase();
@@ -142,7 +145,7 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
       if (!dept) rowErrors.push('Dept/Course is required');
       if (!designation) rowErrors.push('Designation is required');
 
-      const course = findCourseByName(dept);
+      const course = findCourseByNameOrCode(dept);
       if (!course) {
         rowErrors.push('Course not found');
       }
@@ -160,19 +163,19 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
 
   const buildPayload = () => {
     const items = rows.map(r => {
-      const course = findCourseByName(r['Dept/Course']);
+      const course = findCourseByNameOrCode(r['Dept/Course']);
       const semesterNum = parseInt(r['Semester'], 10);
       const existingSubject = course && findSubjectMatch(r['Subject'], r['Dept/Course'], r['Year'], semesterNum);
       const subjectCode = existingSubject ? existingSubject.subjectCode : computeSubjectCode(r['Subject']);
       return {
         name: r['Name'],
         phoneNumber: r['Phone Number'] || null,
-        department: r['Dept/Course'],
+        department: course ? course.name : r['Dept/Course'], // Send the full course name
         designation: r['Designation'],
         subject: {
           name: r['Subject'],
           code: subjectCode,
-          courseName: r['Dept/Course'],
+          courseName: course ? course.name : r['Dept/Course'], // Send the full course name
           year: r['Year'],
           semester: semesterNum,
         },
@@ -218,6 +221,7 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
     try {
       await adminAPI.bulkUploadFaculty(payload);
       handleClose();
+      onSuccess?.();
     } catch (e) {
       console.error('Bulk upload failed', e);
     } finally {
@@ -293,12 +297,12 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
                             {h === 'Dept/Course' ? (
                               <select
                                 className="input"
-                                value={r[h] || ''}
+                                value={findCourseByNameOrCode(r[h])?.code || ''}
                                 onChange={(e) => updateCell(r.__row, h, e.target.value)}
                               >
                                 <option value="">Select course</option>
                                 {courses.map(c => (
-                                  <option key={c.id} value={c.name}>{c.name}</option>
+                                  <option key={c.id} value={c.code}>{c.name} ({c.code})</option>
                                 ))}
                               </select>
                             ) : (
