@@ -36,6 +36,7 @@ const ResponseAnalytics = () => {
     course: '',
     year: '',
     semester: '',
+    section: '',
     subject: '',
     activationPeriod: ''
   });
@@ -263,6 +264,7 @@ const ResponseAnalytics = () => {
           course: '',
           year: '',
           semester: '',
+          section: '',
           subject: '',
           activationPeriod: sortedPeriods[0].start,
         });
@@ -271,6 +273,7 @@ const ResponseAnalytics = () => {
           course: '',
           year: '',
           semester: '',
+          section: '',
           subject: '',
           activationPeriod: '',
         });
@@ -281,6 +284,7 @@ const ResponseAnalytics = () => {
         course: '',
         year: '',
         semester: '',
+        section: '',
         subject: '',
         activationPeriod: '',
       });
@@ -319,6 +323,34 @@ const ResponseAnalytics = () => {
     } catch (error) {
       console.error('Export error:', error);
       toast.error('Failed to export data');
+    }
+  };
+
+  const handleComprehensiveExport = async () => {
+    if (!selectedForm) {
+      toast.error('Please select a form first');
+      return;
+    }
+
+    try {
+      const params = { 
+        formId: selectedForm, 
+        course: filters.course,
+        activationPeriod: filters.activationPeriod
+      };
+      const response = await responseAPI.exportComprehensiveAnalytics(params);
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `comprehensive_analytics_${new Date().toISOString().split('T')[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Comprehensive analytics exported successfully');
+    } catch (error) {
+      console.error('Comprehensive export error:', error);
+      toast.error('Failed to export comprehensive analytics');
     }
   };
 
@@ -382,12 +414,21 @@ const ResponseAnalytics = () => {
           </button>
 
           <button
-            onClick={handleExport}
+            onClick={handleComprehensiveExport}
             disabled={!selectedForm}
-            className="flex items-center btn btn-primary px-3 py-2 rounded-md hover:bg-blue-700 transition"
+            className="flex items-center btn btn-primary px-3 py-2 rounded-md hover:bg-green-700 transition bg-green-600"
           >
             <Download className="h-4 w-4 mr-2" />
-            Export Data
+            Export Analytics (Excel)
+          </button>
+
+          <button
+            onClick={handleExport}
+            disabled={!selectedForm}
+            className="flex items-center btn btn-secondary px-3 py-2 rounded-md hover:bg-gray-200 transition"
+          >
+            <Download className="h-4 w-4 mr-2" />
+            Export CSV
           </button>
         </div>
       </div>
@@ -471,6 +512,27 @@ const ResponseAnalytics = () => {
               {[...Array(2)].map((_, i) => (
                 <option key={i + 1} value={i + 1}>{i + 1}{['st', 'nd', 'rd', 'th', 'th', 'th', 'th', 'th'][i]} Semester</option>
               ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
+            <select
+              value={filters.section}
+              onChange={(e) => handleFilterChange('section', e.target.value)}
+              className="input w-full"
+              disabled={!filters.course || !filters.year || !filters.semester}
+            >
+              <option value="">All Sections</option>
+              {filters.course && filters.year && filters.semester && (() => {
+                const course = courses.find(c => c._id === filters.course);
+                const yearSemData = course?.yearSemesterSections?.find(
+                  ys => ys.year === parseInt(filters.year) && ys.semester === parseInt(filters.semester)
+                );
+                return yearSemData?.sections?.map(section => (
+                  <option key={section._id} value={section._id}>Section {section.sectionName}</option>
+                ));
+              })()}
             </select>
           </div>
 

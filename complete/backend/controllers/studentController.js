@@ -256,6 +256,7 @@ const submitFeedback = async (req, res) => {
       'courseInfo.course': courseInfo.course,
       'courseInfo.year': courseInfo.year,
       'courseInfo.semester': courseInfo.semester,
+      'courseInfo.section': courseInfo.section || null,
       'period.start': activePeriod.start,
       $or: [
         { 'period.end': { $exists: false } },
@@ -295,7 +296,8 @@ const submitFeedback = async (req, res) => {
       courseInfo: {
         course: courseInfo.course,
         year: courseInfo.year,
-        semester: courseInfo.semester
+        semester: courseInfo.semester,
+        section: courseInfo.section || null
       },
       period: {
         start: activePeriod.start,

@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, BookOpen, Code, Loader2 } from 'lucide-react';
+import { X, BookOpen, Code, Loader2, Plus, Trash2 } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import { checkCourseCodeExists } from '../../utils/validation';
 import toast from 'react-hot-toast';
 
 const CreateCourseModal = ({ isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
+  const [yearSemesterSections, setYearSemesterSections] = useState([]);
   const {
     register,
     handleSubmit,
@@ -30,7 +31,17 @@ const CreateCourseModal = ({ isOpen, onClose, onSuccess }) => {
         return;
       }
 
-      const response = await adminAPI.createCourse(data);
+      // Add year-semester sections to the data
+      const courseData = {
+        ...data,
+        yearSemesterSections: yearSemesterSections.map(ys => ({
+          year: ys.year,
+          semester: ys.semester,
+          sections: ys.sections.filter(s => s.sectionName.trim() !== '')
+        })).filter(ys => ys.sections.length > 0)
+      };
+
+      const response = await adminAPI.createCourse(courseData);
       toast.success('Course created successfully!');
       reset();
       onSuccess?.(response.data);
@@ -52,7 +63,40 @@ const CreateCourseModal = ({ isOpen, onClose, onSuccess }) => {
 
   const handleClose = () => {
     reset();
+    setYearSemesterSections([]);
     onClose();
+  };
+
+  const addYearSemester = () => {
+    setYearSemesterSections([...yearSemesterSections, { year: 1, semester: 1, sections: [] }]);
+  };
+
+  const removeYearSemester = (index) => {
+    setYearSemesterSections(yearSemesterSections.filter((_, i) => i !== index));
+  };
+
+  const updateYearSemester = (index, field, value) => {
+    const updated = [...yearSemesterSections];
+    updated[index][field] = parseInt(value);
+    setYearSemesterSections(updated);
+  };
+
+  const addSection = (ysIndex) => {
+    const updated = [...yearSemesterSections];
+    updated[ysIndex].sections.push({ sectionName: '', studentCount: '' });
+    setYearSemesterSections(updated);
+  };
+
+  const removeSection = (ysIndex, sectionIndex) => {
+    const updated = [...yearSemesterSections];
+    updated[ysIndex].sections = updated[ysIndex].sections.filter((_, i) => i !== sectionIndex);
+    setYearSemesterSections(updated);
+  };
+
+  const updateSection = (ysIndex, sectionIndex, field, value) => {
+    const updated = [...yearSemesterSections];
+    updated[ysIndex].sections[sectionIndex][field] = value;
+    setYearSemesterSections(updated);
   };
 
   if (!isOpen) return null;
@@ -141,6 +185,109 @@ const CreateCourseModal = ({ isOpen, onClose, onSuccess }) => {
             )}
             <p className="mt-1 text-xs text-gray-500">
               Course code will be automatically converted to uppercase
+            </p>
+          </div>
+
+          {/* Year-Semester Sections */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="label">Year & Semester Sections (Optional)</label>
+              <button
+                type="button"
+                onClick={addYearSemester}
+                className="text-sm text-green-600 hover:text-green-700 flex items-center gap-1 font-medium"
+              >
+                <Plus className="h-4 w-4" />
+                Add Year-Semester
+              </button>
+            </div>
+            {yearSemesterSections.length === 0 ? (
+              <p className="text-sm text-gray-500 italic">No year-semester sections added. Click "Add Year-Semester" to create sections for specific years and semesters.</p>
+            ) : (
+              <div className="space-y-4">
+                {yearSemesterSections.map((ys, ysIndex) => (
+                  <div key={ysIndex} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex gap-2 items-center flex-1">
+                        <select
+                          value={ys.year}
+                          onChange={(e) => updateYearSemester(ysIndex, 'year', e.target.value)}
+                          className="input text-sm flex-1"
+                        >
+                          <option value={1}>Year 1</option>
+                          <option value={2}>Year 2</option>
+                          <option value={3}>Year 3</option>
+                          <option value={4}>Year 4</option>
+                        </select>
+                        <select
+                          value={ys.semester}
+                          onChange={(e) => updateYearSemester(ysIndex, 'semester', e.target.value)}
+                          className="input text-sm flex-1"
+                        >
+                          <option value={1}>Semester 1</option>
+                          <option value={2}>Semester 2</option>
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => removeYearSemester(ysIndex)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-gray-700">Sections</span>
+                        <button
+                          type="button"
+                          onClick={() => addSection(ysIndex)}
+                          className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add Section
+                        </button>
+                      </div>
+                      {ys.sections.length === 0 ? (
+                        <p className="text-xs text-gray-500 italic">No sections</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {ys.sections.map((section, sectionIndex) => (
+                            <div key={sectionIndex} className="flex gap-2 items-start">
+                              <input
+                                type="text"
+                                value={section.sectionName}
+                                onChange={(e) => updateSection(ysIndex, sectionIndex, 'sectionName', e.target.value)}
+                                className="input text-xs flex-1"
+                                placeholder="Section (e.g., A)"
+                              />
+                              <input
+                                type="number"
+                                value={section.studentCount || ''}
+                                onChange={(e) => updateSection(ysIndex, sectionIndex, 'studentCount', e.target.value)}
+                                className="input text-xs flex-1"
+                                placeholder="Count"
+                                min="0"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeSection(ysIndex, sectionIndex)}
+                                className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="mt-2 text-xs text-gray-500">
+              Add sections for specific year and semester combinations. For example, Year 1 Semester 1 might have sections A, B, C.
             </p>
           </div>
 

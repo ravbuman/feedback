@@ -80,6 +80,10 @@ const responseSchema = new mongoose.Schema({
     semester: {
       type: Number,
       required: true
+    },
+    section: {
+      type: mongoose.Schema.Types.ObjectId,
+      default: null
     }
   },
   period: {

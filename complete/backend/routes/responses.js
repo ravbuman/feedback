@@ -31,6 +31,9 @@ router.get('/analytics/text-answers/export', auth, responseController.exportText
 // Export responses to CSV
 router.get('/export/csv', auth, responseController.exportToCSV);
 
+// Export comprehensive analytics to Excel (Year-wise worksheets)
+router.get('/export/comprehensive', auth, responseController.exportComprehensiveAnalytics);
+
 // Delete response (admin only)
 router.delete('/:id', auth, responseController.deleteResponse);
 

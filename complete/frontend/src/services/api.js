@@ -124,6 +124,7 @@ export const responseAPI = {
   getStats: (params) => api.get('/responses/stats/overview', { params }),
   getFacultyPerformance: (params) => api.get('/responses/stats/faculty-performance', { params }),
   exportCSV: (params) => api.get('/responses/export/csv', { params, responseType: 'blob' }),
+  exportComprehensiveAnalytics: (params) => api.get('/responses/export/comprehensive', { params, responseType: 'blob' }),
   deleteResponse: (id) => api.delete(`/responses/${id}`),
 };
 

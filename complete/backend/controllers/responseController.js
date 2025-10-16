@@ -4,6 +4,8 @@ const Subject = require('../models/Subject');
 const Course = require('../models/Course');
 const FeedbackForm = require('../models/FeedbackForm');
 const mongoose = require('mongoose');
+const ExcelJS = require('exceljs');
+const fuzz = require('fuzzball');
 
 // Get all responses with filtering options
 const getAllResponses = async (req, res) => {
@@ -12,6 +14,7 @@ const getAllResponses = async (req, res) => {
       course,
       year,
       semester,
+      section,
       subject,
       faculty,
       studentName,
@@ -26,6 +29,7 @@ const getAllResponses = async (req, res) => {
     if (course) filter['courseInfo.course'] = course;
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
+    if (section) filter['courseInfo.section'] = section;
     if (studentName) filter['studentInfo.name'] = { $regex: studentName, $options: 'i' };
     if (rollNumber) filter['studentInfo.rollNumber'] = { $regex: rollNumber, $options: 'i' };
     if (subject) filter.subject = subject;
@@ -86,7 +90,7 @@ const getResponseById = async (req, res) => {
 // Get comprehensive analytics for different question types
 const getQuestionAnalytics = async (req, res) => {
   try {
-    const { formId, subjectId, courseId, year, semester, activationPeriod } = req.query;
+    const { formId, subjectId, courseId, year, semester, section, activationPeriod } = req.query;
 
     // Also accept 'subject' and 'course' keys for compatibility with frontend
     const { subject: subjectParam, course: courseParam } = req.query;
@@ -98,6 +102,7 @@ const getQuestionAnalytics = async (req, res) => {
     if (courseId || courseParam) filter['courseInfo.course'] = courseId || courseParam;
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
+    if (section) filter['courseInfo.section'] = section;
     if (activationPeriod) {
       const form = await FeedbackForm.findById(formId);
       if (form && form.activationPeriods) {
@@ -267,12 +272,13 @@ const getQuestionAnalytics = async (req, res) => {
 // Get response statistics overview
 const getResponseStats = async (req, res) => {
   try {
-    const { course, year, semester } = req.query;
+    const { course, year, semester, section } = req.query;
 
     const filter = {};
     if (course) filter['courseInfo.course'] = course;
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
+    if (section) filter['courseInfo.section'] = section;
 
     // Get total counts from all collections
     const [
@@ -349,7 +355,7 @@ const getResponseStats = async (req, res) => {
 // Get faculty performance analysis
 const getFacultyPerformance = async (req, res) => {
   try {
-    const { facultyId, course, year, semester } = req.query;
+    const { facultyId, course, year, semester, section } = req.query;
 
     // Find subjects taught by this faculty
     const facultySubjects = await Subject.find({
@@ -363,6 +369,7 @@ const getFacultyPerformance = async (req, res) => {
     if (course) matchFilter['courseInfo.course'] = course;
     if (year) matchFilter['courseInfo.year'] = parseInt(year);
     if (semester) matchFilter['courseInfo.semester'] = parseInt(semester);
+    if (section) matchFilter['courseInfo.section'] = section;
 
     const facultyPerformance = await Response.aggregate([
       { $match: matchFilter },
@@ -428,12 +435,13 @@ const getFacultyPerformance = async (req, res) => {
 // Export responses to CSV
 const exportToCSV = async (req, res) => {
   try {
-    const { course, year, semester, formId, activationPeriod } = req.query;
+    const { course, year, semester, section, formId, activationPeriod } = req.query;
 
     const filter = {};
     if (course) filter['courseInfo.course'] = course;
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
+    if (section) filter['courseInfo.section'] = section;
     if (activationPeriod) {
       const form = await FeedbackForm.findById(formId);
       if (form && form.activationPeriods) {
@@ -558,7 +566,7 @@ const deleteResponse = async (req, res) => {
 
 const getFacultyQuestionAnalytics = async (req, res) => {
   try {
-    const { formId, course, year, semester, subject, activationPeriod } = req.query;
+    const { formId, course, year, semester, section, subject, activationPeriod } = req.query;
 
     // Build filter
     const filter = {};
@@ -566,6 +574,7 @@ const getFacultyQuestionAnalytics = async (req, res) => {
     if (course) filter['courseInfo.course'] = course;
     if (year) filter['courseInfo.year'] = parseInt(year);
     if (semester) filter['courseInfo.semester'] = parseInt(semester);
+    if (section) filter['courseInfo.section'] = section;
     if (subject) filter['subjectResponses.subject'] = subject;
     if (activationPeriod) {
       const form = await FeedbackForm.findById(formId);
@@ -841,18 +850,511 @@ const getFacultyQuestionAnalytics = async (req, res) => {
   }
 };
 
+// Export comprehensive analytics to Excel (Year-wise worksheets)
+const exportComprehensiveAnalytics = async (req, res) => {
+  try {
+    const { formId, course, activationPeriod } = req.query;
+
+    if (!formId) {
+      return res.status(400).json({ message: 'Form ID is required' });
+    }
+
+    // Build filter and get period info
+    const filter = { 'subjectResponses.form': formId };
+    if (course) filter['courseInfo.course'] = course;
+    
+    let selectedPeriod = null;
+    if (activationPeriod) {
+      const form = await FeedbackForm.findById(formId);
+      if (form && form.activationPeriods) {
+        const period = form.activationPeriods.find(p => p.start.toISOString() === activationPeriod);
+        if (period) {
+          selectedPeriod = period; // Store for title generation
+          if (period.end) {
+            filter.submittedAt = { $gte: period.start, $lte: period.end };
+          } else {
+            filter.submittedAt = { $gte: period.start };
+          }
+        }
+      }
+    }
+
+    // Fetch all responses with full population
+    const responses = await Response.find(filter)
+      .populate({
+        path: 'courseInfo.course',
+        select: 'courseName courseCode yearSemesterSections'
+      })
+      .populate({
+        path: 'subjectResponses.subject',
+        populate: {
+          path: 'faculty',
+          model: 'Faculty',
+          select: 'name designation department'
+        }
+      })
+      .populate('subjectResponses.form');
+
+    if (responses.length === 0) {
+      return res.status(404).json({ message: 'No responses found' });
+    }
+
+    // Get form details
+    const form = await FeedbackForm.findById(formId);
+    if (!form) {
+      return res.status(404).json({ message: 'Form not found' });
+    }
+
+    // Group data by Year → Course → Semester → Section → Subject → Faculty
+    const yearData = {};
+
+    responses.forEach(response => {
+      const year = response.courseInfo.year;
+      const semester = response.courseInfo.semester;
+      const courseName = response.courseInfo.course.courseName;
+      const courseObj = response.courseInfo.course;
+      const sectionId = response.courseInfo.section;
+      
+      // Find section name from year-semester specific sections
+      let sectionName = '';
+      if (sectionId && courseObj.yearSemesterSections) {
+        const yearSemData = courseObj.yearSemesterSections.find(
+          ys => ys.year === year && ys.semester === semester
+        );
+        if (yearSemData) {
+          const section = yearSemData.sections.find(s => s._id.toString() === sectionId.toString());
+          sectionName = section ? section.sectionName : '';
+        }
+      }
+
+      response.subjectResponses.forEach(sr => {
+        if (sr.form && sr.form._id.toString() === formId && sr.subject && sr.subject.faculty) {
+          const subjectName = sr.subject.subjectName;
+          const facultyName = sr.subject.faculty.name;
+          const facultyId = sr.subject.faculty._id.toString();
+
+          // Create unique key
+          const key = `${year}|${semester}|${courseName}|${sectionName}|${subjectName}|${facultyId}`;
+
+          if (!yearData[year]) yearData[year] = {};
+          if (!yearData[year][key]) {
+            yearData[year][key] = {
+              courseName,
+              year,
+              semester,
+              sectionName,
+              subjectName,
+              facultyName,
+              facultyId,
+              responseCount: 0,
+              responses: [],
+              questionData: {}
+            };
+          }
+
+          yearData[year][key].responseCount++;
+          yearData[year][key].responses.push({
+            answers: sr.answers,
+            questions: sr.questions
+          });
+        }
+      });
+    });
+
+    // Calculate question analytics for each group
+    Object.keys(yearData).forEach(year => {
+      Object.keys(yearData[year]).forEach(key => {
+        const group = yearData[year][key];
+        
+        form.questions.forEach((question, qIndex) => {
+          const answers = group.responses
+            .map(r => r.answers[qIndex])
+            .filter(a => a !== undefined && a !== null && a !== '');
+
+          let analytics = '';
+
+          switch (question.questionType) {
+            case 'scale':
+              const scaleValues = answers.map(a => parseInt(a)).filter(v => !isNaN(v));
+              if (scaleValues.length > 0) {
+                const avg = scaleValues.reduce((s, v) => s + v, 0) / scaleValues.length;
+                analytics = avg.toFixed(2);
+              }
+              break;
+
+            case 'yesno':
+              const yesCount = answers.filter(a => a === 'yes' || a === true).length;
+              const total = answers.length;
+              if (total > 0) {
+                const yesPercent = ((yesCount / total) * 100).toFixed(1);
+                analytics = `${yesPercent}% Yes`;
+              }
+              break;
+
+            case 'multiplechoice':
+              const choiceCounts = {};
+              answers.forEach(a => {
+                if (Array.isArray(a)) {
+                  a.forEach(choice => {
+                    choiceCounts[choice] = (choiceCounts[choice] || 0) + 1;
+                  });
+                } else {
+                  choiceCounts[a] = (choiceCounts[a] || 0) + 1;
+                }
+              });
+              const topChoice = Object.entries(choiceCounts)
+                .sort((a, b) => b[1] - a[1])[0];
+              if (topChoice) {
+                analytics = `${topChoice[0]} (${topChoice[1]})`;
+              }
+              break;
+
+            case 'text':
+            case 'textarea':
+              // Use fuzzy matching to group similar responses
+              const groupedResponses = [];
+              const processedAnswers = answers.map(a => String(a).trim().toLowerCase());
+              
+              processedAnswers.forEach(answer => {
+                if (!answer) return;
+                
+                // Try to find a similar existing group (80% similarity threshold)
+                let foundGroup = false;
+                for (let group of groupedResponses) {
+                  const similarity = fuzz.ratio(answer, group.text.toLowerCase());
+                  if (similarity >= 80) {
+                    group.count++;
+                    foundGroup = true;
+                    break;
+                  }
+                }
+                
+                // If no similar group found, create new one
+                if (!foundGroup) {
+                  groupedResponses.push({
+                    text: answers[processedAnswers.indexOf(answer)], // Original case
+                    count: 1
+                  });
+                }
+              });
+              
+              // Sort by count (descending) and format
+              groupedResponses.sort((a, b) => b.count - a.count);
+              
+              // Create formatted string with top responses
+              if (groupedResponses.length > 0) {
+                const topResponses = groupedResponses.slice(0, 5); // Top 5 responses
+                analytics = topResponses
+                  .map(r => `"${r.text}" (${r.count})`)
+                  .join('\n');
+              } else {
+                analytics = 'No responses';
+              }
+              break;
+          }
+
+          group.questionData[`Q${qIndex + 1}`] = analytics;
+        });
+      });
+    });
+
+    // Create Excel workbook
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'Feedback System';
+    workbook.created = new Date();
+
+    // Sort years
+    const sortedYears = Object.keys(yearData).sort((a, b) => parseInt(a) - parseInt(b));
+
+    // Generate report title with dynamic date
+    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    let reportMonth = '';
+    let reportYear = '';
+    
+    if (selectedPeriod && selectedPeriod.start) {
+      const periodDate = new Date(selectedPeriod.start);
+      reportMonth = monthNames[periodDate.getMonth()];
+      reportYear = periodDate.getFullYear();
+    } else {
+      // Fallback to current date if no period selected
+      const currentDate = new Date();
+      reportMonth = monthNames[currentDate.getMonth()];
+      reportYear = currentDate.getFullYear();
+    }
+
+    sortedYears.forEach(year => {
+      const worksheet = workbook.addWorksheet(`Year ${year}`);
+
+      // Define columns
+      const columns = [
+        { header: 'BRANCH', key: 'branch', width: 15 },
+        { header: 'YEAR & SEM', key: 'yearSem', width: 12 },
+        { header: 'SECTION', key: 'section', width: 10 },
+        { header: 'NAME OF THE SUBJECT', key: 'subject', width: 25 },
+        { header: 'NAME OF THE STAFF', key: 'staff', width: 25 },
+        { header: 'STUDENTS GAVE FB', key: 'count', width: 18 }
+      ];
+
+      // Add question columns
+      form.questions.forEach((q, idx) => {
+        columns.push({
+          header: `Q${idx + 1}: ${q.questionText.substring(0, 30)}...`,
+          key: `Q${idx + 1}`,
+          width: 20
+        });
+      });
+
+      worksheet.columns = columns;
+
+      // Add title rows at the top
+      worksheet.insertRow(1, []); // Insert blank row for title 1
+      worksheet.insertRow(2, []); // Insert blank row for title 2
+      
+      const totalColumns = columns.length;
+      
+      // Title Row 1: College Name
+      const titleRow1 = worksheet.getRow(1);
+      titleRow1.height = 35;
+      worksheet.mergeCells(1, 1, 1, totalColumns);
+      const titleCell1 = worksheet.getCell(1, 1);
+      titleCell1.value = 'PYDAH COLLEGE OF ENGINEERING(A)';
+      titleCell1.font = { bold: true, size: 16, color: { argb: 'FF000000' } };
+      titleCell1.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFB4C7E7' } // Light blue
+      };
+      titleCell1.alignment = { vertical: 'middle', horizontal: 'center' };
+      titleCell1.border = {
+        top: { style: 'medium', color: { argb: 'FF000000' } },
+        left: { style: 'medium', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'medium', color: { argb: 'FF000000' } }
+      };
+      
+      // Title Row 2: Report Title with Dynamic Date
+      const titleRow2 = worksheet.getRow(2);
+      titleRow2.height = 30;
+      worksheet.mergeCells(2, 1, 2, totalColumns);
+      const titleCell2 = worksheet.getCell(2, 1);
+      titleCell2.value = `ACADEMIC FEEDBACK ANALYSIS REPORT-${reportMonth}-${reportYear}`;
+      titleCell2.font = { bold: true, size: 14, color: { argb: 'FF000000' } };
+      titleCell2.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFB4C7E7' } // Light blue
+      };
+      titleCell2.alignment = { vertical: 'middle', horizontal: 'center' };
+      titleCell2.border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'medium', color: { argb: 'FF000000' } },
+        bottom: { style: 'medium', color: { argb: 'FF000000' } },
+        right: { style: 'medium', color: { argb: 'FF000000' } }
+      };
+
+      // Style header row with better colors and spacing (now row 3)
+      // Only style cells that have actual header text
+      const headerRow = worksheet.getRow(3);
+      headerRow.height = 30; // Increased height for better spacing
+      
+      headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+        // Only style cells with actual content (skip empty columns)
+        if (cell.value && cell.value.toString().trim() !== '') {
+          cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }; // White text
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF4472C4' } // Professional blue color
+          };
+          cell.alignment = { 
+            vertical: 'middle', 
+            horizontal: 'center',
+            wrapText: true 
+          };
+          cell.border = {
+            top: { style: 'medium', color: { argb: 'FF000000' } },
+            left: { style: 'medium', color: { argb: 'FF000000' } },
+            bottom: { style: 'medium', color: { argb: 'FF000000' } },
+            right: { style: 'medium', color: { argb: 'FF000000' } }
+          };
+        }
+      });
+
+      // Add data rows with grouping
+      const rows = Object.values(yearData[year]).sort((a, b) => {
+        if (a.courseName !== b.courseName) return a.courseName.localeCompare(b.courseName);
+        if (a.semester !== b.semester) return a.semester - b.semester;
+        if (a.sectionName !== b.sectionName) return a.sectionName.localeCompare(b.sectionName);
+        return a.subjectName.localeCompare(b.subjectName);
+      });
+
+      const yearSemMap = {
+        1: { 1: 'I-I', 2: 'I-II' },
+        2: { 1: 'II-I', 2: 'II-II' },
+        3: { 1: 'III-I', 2: 'III-II' },
+        4: { 1: 'IV-I', 2: 'IV-II' }
+      };
+
+      // Group rows by course-semester-section
+      let currentGroup = null;
+      let groupStartRow = 4; // Start after title rows (1, 2) and header (3)
+      let currentRowNumber = 4;
+
+      rows.forEach((row, index) => {
+        const groupKey = `${row.courseName}|${row.semester}|${row.sectionName}`;
+        
+        // Check if we're starting a new group
+        if (currentGroup !== groupKey) {
+          // If there was a previous group, merge its cells
+          if (currentGroup !== null && currentRowNumber > groupStartRow) {
+            worksheet.mergeCells(groupStartRow, 1, currentRowNumber - 1, 1); // BRANCH
+            worksheet.mergeCells(groupStartRow, 2, currentRowNumber - 1, 2); // YEAR & SEM
+            worksheet.mergeCells(groupStartRow, 3, currentRowNumber - 1, 3); // SECTION
+            
+            // Center align merged cells
+            worksheet.getCell(groupStartRow, 1).alignment = { vertical: 'middle', horizontal: 'center' };
+            worksheet.getCell(groupStartRow, 2).alignment = { vertical: 'middle', horizontal: 'center' };
+            worksheet.getCell(groupStartRow, 3).alignment = { vertical: 'middle', horizontal: 'center' };
+
+            // Add separator row with dark gray background
+            const separatorRow = worksheet.getRow(currentRowNumber);
+            separatorRow.height = 5;
+            for (let col = 1; col <= columns.length; col++) {
+              separatorRow.getCell(col).fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FF808080' }
+              };
+            }
+            currentRowNumber++;
+          }
+          
+          currentGroup = groupKey;
+          groupStartRow = currentRowNumber;
+        }
+
+        const rowData = {
+          branch: row.courseName,
+          yearSem: yearSemMap[row.year]?.[row.semester] || `${row.year}-${row.semester}`,
+          section: row.sectionName || '',
+          subject: row.subjectName,
+          staff: row.facultyName,
+          count: row.responseCount,
+          ...row.questionData
+        };
+
+        worksheet.addRow(rowData);
+        currentRowNumber++;
+
+        // If this is the last row, merge the final group
+        if (index === rows.length - 1 && currentRowNumber > groupStartRow) {
+          worksheet.mergeCells(groupStartRow, 1, currentRowNumber - 1, 1); // BRANCH
+          worksheet.mergeCells(groupStartRow, 2, currentRowNumber - 1, 2); // YEAR & SEM
+          worksheet.mergeCells(groupStartRow, 3, currentRowNumber - 1, 3); // SECTION
+          
+          // Center align merged cells
+          worksheet.getCell(groupStartRow, 1).alignment = { vertical: 'middle', horizontal: 'center' };
+          worksheet.getCell(groupStartRow, 2).alignment = { vertical: 'middle', horizontal: 'center' };
+          worksheet.getCell(groupStartRow, 3).alignment = { vertical: 'middle', horizontal: 'center' };
+        }
+      });
+
+      // Add borders, styling, and spacing to all cells
+      worksheet.eachRow((row, rowNumber) => {
+        // Skip title rows (1, 2) and separator rows (height = 5)
+        if (rowNumber <= 2 || row.height === 5) return;
+        
+        // Set row height for better spacing (except header and title rows)
+        if (rowNumber > 3) {
+          row.height = 25; // Increased row height for better readability
+        }
+        
+        row.eachCell((cell, colNumber) => {
+          // Add borders (skip title rows)
+          if (rowNumber > 2) {
+            cell.border = {
+              top: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+              left: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+              bottom: { style: 'thin', color: { argb: 'FFD0D0D0' } },
+              right: { style: 'thin', color: { argb: 'FFD0D0D0' } }
+            };
+          }
+          
+          // Skip title rows and header row styling (already done)
+          if (rowNumber <= 3) return;
+          
+          // Add padding and alignment
+          if (!cell.alignment) {
+            cell.alignment = { 
+              vertical: 'middle', 
+              horizontal: 'left',
+              wrapText: true,
+              indent: 1 // Add left padding
+            };
+          }
+          
+          // Center align specific columns
+          if (colNumber === 6) { // Count column
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.font = { bold: true, size: 11 };
+          }
+          
+          // Alternating row colors for better readability (light blue)
+          // Start alternating from row 4 (first data row after title and header)
+          if (rowNumber > 3 && (rowNumber - 3) % 2 === 0) {
+            cell.fill = {
+              type: 'pattern',
+              pattern: 'solid',
+              fgColor: { argb: 'FFF0F4FF' } // Very light blue
+            };
+          }
+          
+          // Style for text question cells (wrap text for multi-line responses)
+          if (colNumber > 6) { // Question columns
+            cell.alignment = { 
+              vertical: 'top', 
+              horizontal: 'left',
+              wrapText: true,
+              indent: 1
+            };
+          }
+        });
+      });
+    });
+
+    // Set response headers
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=Feedback_Analytics_${form.formName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`
+    );
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (error) {
+    console.error('Export comprehensive analytics error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
 module.exports = {
   getAllResponses,
   getResponseById,
   getQuestionAnalytics,
   getResponseStats,
   exportToCSV,
+  exportComprehensiveAnalytics,
   getFacultyPerformance,
   deleteResponse,
   getFacultyQuestionAnalytics,
   getTextAnswers: async (req, res) => {
     try {
-      const { formId, questionId, course, year, semester, activationPeriod, page = 1, limit = 50 } = req.query;
+      const { formId, questionId, course, year, semester, section, activationPeriod, page = 1, limit = 50 } = req.query;
 
       if (!formId || !questionId) {
         return res.status(400).json({ message: 'formId and questionId are required' });
@@ -863,6 +1365,7 @@ module.exports = {
       if (course) filter['courseInfo.course'] = course;
       if (year) filter['courseInfo.year'] = parseInt(year);
       if (semester) filter['courseInfo.semester'] = parseInt(semester);
+      if (section) filter['courseInfo.section'] = section;
       if (activationPeriod) {
         const form = await FeedbackForm.findById(formId);
         if (form && form.activationPeriods) {
@@ -930,7 +1433,7 @@ module.exports = {
   // New endpoints below
   getTextAnswersByFaculty: async (req, res) => {
     try {
-      const { formId, questionId, course, year, semester, subject, activationPeriod, facultyId, page = 1, limit = 50 } = req.query;
+      const { formId, questionId, course, year, semester, section, subject, activationPeriod, facultyId, page = 1, limit = 50 } = req.query;
 
       if (!formId || !questionId) {
         return res.status(400).json({ message: 'formId and questionId are required' });
@@ -942,6 +1445,7 @@ module.exports = {
       if (course) filter['courseInfo.course'] = course;
       if (year) filter['courseInfo.year'] = parseInt(year);
       if (semester) filter['courseInfo.semester'] = parseInt(semester);
+      if (section) filter['courseInfo.section'] = section;
       if (subject) filter['subjectResponses.subject'] = subject;
       if (activationPeriod) {
         const form = await FeedbackForm.findById(formId);
@@ -1029,7 +1533,7 @@ module.exports = {
   },
   exportTextAnswersCSV: async (req, res) => {
     try {
-      const { formId, questionId, course, year, semester, subject, activationPeriod, facultyId } = req.query;
+      const { formId, questionId, course, year, semester, section, subject, activationPeriod, facultyId } = req.query;
       if (!formId || !questionId) {
         return res.status(400).json({ message: 'formId and questionId are required' });
       }
@@ -1039,6 +1543,7 @@ module.exports = {
       if (course) filter['courseInfo.course'] = course;
       if (year) filter['courseInfo.year'] = parseInt(year);
       if (semester) filter['courseInfo.semester'] = parseInt(semester);
+      if (section) filter['courseInfo.section'] = section;
       if (subject) filter['subjectResponses.subject'] = subject;
       if (activationPeriod) {
         const form = await FeedbackForm.findById(formId);

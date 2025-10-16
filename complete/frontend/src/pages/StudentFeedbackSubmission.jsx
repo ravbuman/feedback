@@ -72,17 +72,38 @@ const StudentFeedbackSubmission = () => {
       rollNumber: '',
       course: '',
       year: '',
-      semester: ''
+      semester: '',
+      section: ''
     }
   });
 
   const watchedCourse = watch('course');
   const watchedYear = watch('year');
   const watchedSemester = watch('semester');
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [availableSections, setAvailableSections] = useState([]);
 
   useEffect(() => {
     fetchInitialData();
   }, []);
+
+  useEffect(() => {
+    if (watchedCourse) {
+      const course = courses.find(c => c._id === watchedCourse);
+      setSelectedCourse(course);
+    }
+  }, [watchedCourse, courses]);
+
+  useEffect(() => {
+    if (selectedCourse && watchedYear && watchedSemester) {
+      const yearSemData = selectedCourse.yearSemesterSections?.find(
+        ys => ys.year === parseInt(watchedYear) && ys.semester === parseInt(watchedSemester)
+      );
+      setAvailableSections(yearSemData?.sections || []);
+    } else {
+      setAvailableSections([]);
+    }
+  }, [selectedCourse, watchedYear, watchedSemester]);
 
   useEffect(() => {
     if (watchedCourse && watchedYear && watchedSemester) {
@@ -233,7 +254,8 @@ const StudentFeedbackSubmission = () => {
         courseInfo: {
           course: data.course,
           year: parseInt(data.year),
-          semester: parseInt(data.semester)
+          semester: parseInt(data.semester),
+          section: data.section || null
         },
         subjectResponses: Object.keys(responses).map(subjectId => {
           const subjectResponses = responses[subjectId];
@@ -588,7 +610,7 @@ const StudentFeedbackSubmission = () => {
                   {currentStep === 2 && (
                     <div className="bg-white rounded-xl shadow-lg p-6">
                       <h2 className="text-xl font-bold text-gray-900 mb-6">Course Selection</h2>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <label className="label flex items-center">
                             <GraduationCap className="h-4 w-4 mr-2 text-gray-500" />
@@ -645,6 +667,40 @@ const StudentFeedbackSubmission = () => {
                           </select>
                           {errors.semester && (
                             <p className="mt-1 text-sm text-red-600">{errors.semester.message}</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <label className="label flex items-center">
+                            <BookOpen className="h-4 w-4 mr-2 text-gray-500" />
+                            Section {availableSections.length > 0 ? '*' : '(Optional)'}
+                          </label>
+                          <select
+                            {...register('section', { 
+                              required: availableSections.length > 0 ? 'Section selection is required' : false 
+                            })}
+                            className={`input ${errors.section ? 'border-red-300 focus:ring-red-500' : ''}`}
+                            disabled={!watchedYear || !watchedSemester || availableSections.length === 0}
+                          >
+                            <option value="">
+                              {!watchedYear || !watchedSemester
+                                ? 'Select year and semester first' 
+                                : availableSections.length === 0 
+                                ? 'No sections for this year-semester' 
+                                : 'Select section'}
+                            </option>
+                            {availableSections.map((section) => (
+                              <option key={section._id} value={section._id}>
+                                Section {section.sectionName}
+                                {section.studentCount ? ` (${section.studentCount} students)` : ''}
+                              </option>
+                            ))}
+                          </select>
+                          {errors.section && (
+                            <p className="mt-1 text-sm text-red-600">{errors.section.message}</p>
+                          )}
+                          {watchedYear && watchedSemester && availableSections.length === 0 && (
+                            <p className="mt-1 text-xs text-gray-500">No sections for Year {watchedYear} Semester {watchedSemester}</p>
                           )}
                         </div>
                       </div>
