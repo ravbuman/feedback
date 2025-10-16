@@ -65,7 +65,10 @@ export const authAPI = {
 export const studentAPI = {
   getFeedbackForm: (formId) => api.get(`/student/feedback-form/${formId}`),
   getCourses: () => api.get('/student/courses'),
-  getSubjectsByCourse: (courseId, year, semester) => api.get(`/student/subjects/${courseId}/${year}/${semester}`),
+  getSubjectsByCourse: (courseId, year, semester, section) => {
+    const params = section ? { section } : {};
+    return api.get(`/student/subjects/${courseId}/${year}/${semester}`, { params });
+  },
   submitFeedback: (data) => api.post('/student/submit-feedback', data),
 };
 

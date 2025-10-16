@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { X, Upload, AlertTriangle, FileSpreadsheet, Loader2, Edit3, CheckCircle2 } from 'lucide-react';
+import { X, Upload, AlertTriangle, FileSpreadsheet, Loader2, Edit3, CheckCircle2, Download } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 
 const REQUIRED_HEADERS = [
@@ -13,6 +13,8 @@ const REQUIRED_HEADERS = [
 
 const OPTIONAL_HEADERS = [
   'Phone Number',
+  'Section',
+  'Subject Type',
 ];
 
 const ALL_HEADERS = [...REQUIRED_HEADERS, ...OPTIONAL_HEADERS];
@@ -80,6 +82,34 @@ const BulkUploadFacultyModal = ({ isOpen, onClose, onSuccess }) => {
   const handleClose = () => {
     resetState();
     onClose();
+  };
+
+  const downloadSampleCSV = () => {
+    // Create sample CSV content
+    const headers = [...REQUIRED_HEADERS, ...OPTIONAL_HEADERS];
+    const sampleRows = [
+      ['John Doe', 'CSE', 'Professor', 'Data Structures', '2', '1', 'A', '9876543210', ''],
+      ['John Doe', 'CSE', 'Professor', 'Data Structures', '2', '1', 'C', '9876543210', ''],
+      ['Jane Smith', 'CSE', 'Assistant Professor', 'Data Structures Lab', '2', '1', 'B', '9876543211', 'Lab'],
+      ['Bob Wilson', 'ECE', 'Professor', 'Digital Electronics', '1', '1', '', '9876543212', ''],
+    ];
+    
+    // Build CSV string
+    const csvContent = [
+      headers.join(','),
+      ...sampleRows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'faculty_bulk_upload_template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const onFileChange = async (e) => {
@@ -167,17 +197,24 @@ const BulkUploadFacultyModal = ({ isOpen, onClose, onSuccess }) => {
       const semesterNum = parseInt(r['Semester'], 10);
       const existingSubject = course && findSubjectMatch(r['Subject'], r['Dept/Course'], r['Year'], semesterNum);
       const subjectCode = existingSubject ? existingSubject.subjectCode : computeSubjectCode(r['Subject']);
+      
+      // Determine if subject is lab - check if "Lab" is specified in Subject Type column
+      const subjectType = (r['Subject Type'] || '').toLowerCase().trim();
+      const isLab = subjectType === 'lab';
+      
       return {
         name: r['Name'],
         phoneNumber: r['Phone Number'] || null,
-        department: course ? course.name : r['Dept/Course'], // Send the full course name
+        department: course ? course.code : r['Dept/Course'], // Send the course code for matching
         designation: r['Designation'],
         subject: {
           name: r['Subject'],
           code: subjectCode,
-          courseName: course ? course.name : r['Dept/Course'], // Send the full course name
+          courseName: course ? course.code : r['Dept/Course'], // Send the course code for matching
           year: r['Year'],
           semester: semesterNum,
+          section: r['Section'] || null, // Include section if provided
+          isLab: isLab, // Include lab flag
         },
       };
     });
@@ -252,12 +289,20 @@ const BulkUploadFacultyModal = ({ isOpen, onClose, onSuccess }) => {
         <div className="p-6 space-y-6">
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-amber-800 text-sm flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 mt-0.5" />
-            <div>
+            <div className="flex-1">
               <p className="font-semibold mb-1">CSV Requirements</p>
               <p>Required columns: {REQUIRED_HEADERS.join(', ')}. Optional columns: {OPTIONAL_HEADERS.join(', ')}.</p>
               <p className="mt-1">- Dept/Course must match an existing course name. If not, you can change it inline below.</p>
               <p>- Subject will be created if it does not exist. Subject Code rule: single-word → first 3 letters; multi-word → initials.</p>
+              <p className="mt-1">- Section column is optional. Leave empty for sectionless subjects. If section doesn't exist, it will be auto-created.</p>
             </div>
+            <button
+              onClick={downloadSampleCSV}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium whitespace-nowrap"
+            >
+              <Download className="h-4 w-4" />
+              Download Template
+            </button>
           </div>
 
           <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">

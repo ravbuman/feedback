@@ -240,6 +240,8 @@ const getAllSubjects = async (req, res) => {
     const subjects = await Subject.find({ isActive: true })
       .populate('course', 'courseName courseCode')
       .populate('faculty', 'name designation department')
+      .populate('sectionFaculty.faculty', 'name designation department')
+      .populate('sectionFaculty.section')
       .sort({ course: 1, year: 1, semester: 1 });
 
     res.json(subjects);
@@ -259,7 +261,19 @@ const createSubject = async (req, res) => {
     const subject = new Subject(req.body);
     await subject.save();
 
-    // Add subject to faculty's subjects array only if faculty is provided
+    // Handle section-specific faculty assignments
+    if (req.body.sectionFaculty && Array.isArray(req.body.sectionFaculty)) {
+      // Add subject to each faculty's subjects array
+      const facultyIds = [...new Set(req.body.sectionFaculty.map(sf => sf.faculty))];
+      for (const facultyId of facultyIds) {
+        await Faculty.findByIdAndUpdate(
+          facultyId,
+          { $addToSet: { subjects: subject._id } }
+        );
+      }
+    }
+
+    // Add subject to default faculty's subjects array if provided
     if (req.body.faculty) {
       await Faculty.findByIdAndUpdate(
         req.body.faculty,
@@ -268,6 +282,7 @@ const createSubject = async (req, res) => {
     }
 
     await subject.populate('course', 'courseName courseCode');
+    await subject.populate('sectionFaculty.faculty', 'name designation department');
     if (subject.faculty) {
       await subject.populate('faculty', 'name designation department');
     }
@@ -300,11 +315,36 @@ const updateSubject = async (req, res) => {
       { new: true, runValidators: true }
     ).populate('course', 'courseName courseCode');
 
+    await subject.populate('sectionFaculty.faculty', 'name designation department');
     if (subject.faculty) {
       await subject.populate('faculty', 'name designation department');
     }
 
-    // Handle faculty assignment changes
+    // Handle section-specific faculty assignment changes
+    const oldSectionFacultyIds = oldSubject.sectionFaculty ? 
+      [...new Set(oldSubject.sectionFaculty.map(sf => sf.faculty.toString()))] : [];
+    const newSectionFacultyIds = req.body.sectionFaculty ? 
+      [...new Set(req.body.sectionFaculty.map(sf => sf.faculty))] : [];
+
+    // Remove subject from faculties no longer assigned
+    const removedFacultyIds = oldSectionFacultyIds.filter(id => !newSectionFacultyIds.includes(id));
+    for (const facultyId of removedFacultyIds) {
+      await Faculty.findByIdAndUpdate(
+        facultyId,
+        { $pull: { subjects: subject._id } }
+      );
+    }
+
+    // Add subject to newly assigned faculties
+    const addedFacultyIds = newSectionFacultyIds.filter(id => !oldSectionFacultyIds.includes(id));
+    for (const facultyId of addedFacultyIds) {
+      await Faculty.findByIdAndUpdate(
+        facultyId,
+        { $addToSet: { subjects: subject._id } }
+      );
+    }
+
+    // Handle default faculty assignment changes
     const oldFacultyId = oldSubject.faculty ? oldSubject.faculty.toString() : null;
     const newFacultyId = req.body.faculty || null;
 
@@ -586,97 +626,312 @@ module.exports = {
         return res.status(400).json({ message: 'No items provided' });
       }
 
-      // Fetch once to map courseName -> _id
+      // Fetch courses once
       const courses = await Course.find({ isActive: true });
       const courseMap = new Map();
-      courses.forEach(c => { courseMap.set(c.courseName.toLowerCase(), c); courseMap.set(c.courseCode.toLowerCase(), c); });
+      courses.forEach(c => { 
+        courseMap.set(c.courseName.toLowerCase(), c); 
+        courseMap.set(c.courseCode.toLowerCase(), c); 
+      });
 
       const results = [];
+      const facultyCache = new Map(); // Cache faculty by phone/name
+      const subjectGroups = new Map(); // Group rows by subject
+
+      // Phase 1: Process all rows and group by subject
       for (const item of items) {
         const name = item.name?.trim();
         const phoneNumber = item.phoneNumber?.trim() || null;
         const designation = item.designation?.trim();
         const department = item.department?.trim();
         const subjectInfo = item.subject || {};
+        const sectionName = subjectInfo.section?.trim() || null;
+        const isLab = subjectInfo.isLab === true || subjectInfo.isLab === 'true';
 
         if (!name || !designation || !department) {
-          results.push({ phoneNumber, status: 'skipped', reason: 'Missing required fields' });
+          results.push({ name, phoneNumber, status: 'skipped', reason: 'Missing required fields' });
           continue;
         }
 
-        let faculty;
-        // Find faculty by phone number if provided, otherwise by name and department
-        if (phoneNumber) {
-          faculty = await Faculty.findOne({ phoneNumber });
-        } else {
-          faculty = await Faculty.findOne({ name, department });
-        }
-
+        // Find or create faculty
+        const facultyKey = phoneNumber || `${name}_${department}`;
+        let faculty = facultyCache.get(facultyKey);
+        
         if (!faculty) {
-          // Create new faculty if not found
-          faculty = await Faculty.create({ name, phoneNumber, designation, department, isActive: true });
-        } else {
-          // Update existing faculty
-          faculty.name = name;
-          faculty.designation = designation;
-          faculty.department = department;
-          faculty.isActive = true; // Ensure they are active
-          if (phoneNumber) faculty.phoneNumber = phoneNumber;
-          await faculty.save();
+          if (phoneNumber) {
+            faculty = await Faculty.findOne({ phoneNumber });
+          } else {
+            faculty = await Faculty.findOne({ name, department });
+          }
+
+          if (!faculty) {
+            faculty = await Faculty.create({ name, phoneNumber, designation, department, isActive: true });
+          } else {
+            faculty.name = name;
+            faculty.designation = designation;
+            faculty.department = department;
+            faculty.isActive = true;
+            if (phoneNumber) faculty.phoneNumber = phoneNumber;
+            await faculty.save();
+          }
+          
+          facultyCache.set(facultyKey, faculty);
         }
 
-        // Subject handling
+        // Validate subject info
         const courseName = (subjectInfo.courseName || department || '').toString();
+        console.log(`[Bulk Upload Debug] Row for ${name}: courseName="${courseName}", department="${department}", subjectInfo.courseName="${subjectInfo.courseName}"`);
         const course = courseMap.get(courseName.toLowerCase());
         if (!course) {
-          results.push({ phoneNumber, status: 'partial', reason: `Course not found: ${courseName}` });
+          console.log(`[Bulk Upload Error] Course not found for: "${courseName}". Available courses:`, Array.from(courseMap.keys()));
+          results.push({ name, phoneNumber, status: 'error', reason: `Course not found: ${courseName}` });
           continue;
         }
+        console.log(`[Bulk Upload Success] Matched course: ${course.courseName} (${course.courseCode})`);
+
 
         const year = parseInt(subjectInfo.year, 10);
         const semester = parseInt(subjectInfo.semester, 10);
 
         if (!subjectInfo.name || !year || isNaN(semester)) {
-          // Skip subject creation/assignment if info insufficient; faculty was upserted already
-          results.push({ phoneNumber, status: 'ok', facultyId: faculty._id, note: 'Subject skipped due to incomplete year/semester/name' });
+          results.push({ name, phoneNumber, status: 'ok', facultyId: faculty._id, note: 'Subject skipped due to incomplete info' });
           continue;
         }
 
-        // Find existing subject
-        let subject = await Subject.findOne({
-          course: course._id,
-          year,
-          semester,
-          subjectName: subjectInfo.name,
-          isActive: true,
-        });
-
-        if (!subject) {
-          subject = await Subject.create({
+        // Group by subject
+        const subjectKey = `${course._id}_${year}_${semester}_${subjectInfo.name}`;
+        if (!subjectGroups.has(subjectKey)) {
+          subjectGroups.set(subjectKey, {
             subjectName: subjectInfo.name,
+            course: course,
+            year,
+            semester,
+            sectionFacultyMap: new Map(),
+            defaultFaculty: null,
+            isLab: isLab
+          });
+        }
+
+        const group = subjectGroups.get(subjectKey);
+        
+        // Update isLab if any row specifies it as lab
+        if (isLab) {
+          group.isLab = true;
+        }
+        
+        if (sectionName) {
+          // Section-specific assignment
+          group.sectionFacultyMap.set(sectionName, faculty);
+        } else {
+          // Default faculty (for sectionless)
+          group.defaultFaculty = faculty;
+        }
+      }
+
+      // Phase 2: Process grouped subjects
+      let yearSemestersCreated = [];
+      
+      for (const [subjectKey, group] of subjectGroups) {
+        try {
+          const { subjectName, course, year, semester, sectionFacultyMap, defaultFaculty, isLab } = group;
+
+          // Find or create year-semester in course
+          let yearSemData = course.yearSemesterSections?.find(
+            ys => ys.year === year && ys.semester === semester
+          );
+
+          if (!yearSemData) {
+            // Auto-create year-semester combination
+            console.log(`[Bulk Upload] Auto-creating Year ${year} Semester ${semester} for ${course.courseName}`);
+            
+            if (!course.yearSemesterSections) {
+              course.yearSemesterSections = [];
+            }
+            
+            course.yearSemesterSections.push({
+              year: year,
+              semester: semester,
+              sections: [] // Start with empty sections, will be populated below
+            });
+            
+            await course.save();
+            
+            // Reload course to get the newly created year-semester with proper _id
+            course = await Course.findById(course._id);
+            yearSemData = course.yearSemesterSections.find(
+              ys => ys.year === year && ys.semester === semester
+            );
+            
+            yearSemestersCreated.push(`${course.courseName} - Year ${year} Sem ${semester}`);
+            console.log(`[Bulk Upload] Created Year ${year} Semester ${semester} for ${course.courseName}`);
+          }
+
+          // Process sections - auto-create if needed
+          console.log(`[Bulk Upload] Processing sections for ${subjectName} (${course.courseName} Y${year} S${semester})`);
+          console.log(`[Bulk Upload] Existing sections:`, yearSemData.sections.map(s => s.sectionName));
+          console.log(`[Bulk Upload] Required sections from CSV:`, Array.from(sectionFacultyMap.keys()));
+          
+          let sectionsCreated = [];
+          let courseModified = false;
+
+          for (const [sectionName, faculty] of sectionFacultyMap) {
+            // Check if section exists
+            let section = yearSemData.sections.find(s => s.sectionName === sectionName);
+            
+            if (!section) {
+              // Auto-create section
+              console.log(`[Bulk Upload] ➕ Auto-creating section "${sectionName}" for ${course.courseName} Year ${year} Sem ${semester}`);
+              yearSemData.sections.push({ sectionName });
+              courseModified = true;
+              sectionsCreated.push(sectionName);
+            } else {
+              console.log(`[Bulk Upload] ✓ Section "${sectionName}" already exists`);
+            }
+          }
+
+          // Save course if sections were created
+          if (courseModified) {
+            await course.save();
+            console.log(`[Bulk Upload] 💾 Saved course with new sections:`, sectionsCreated);
+          } else {
+            console.log(`[Bulk Upload] ℹ️ No new sections needed`);
+          }
+          
+          // ALWAYS reload course to get proper section _ids (whether newly created or existing)
+          const reloadedCourse = await Course.findById(course._id);
+          const reloadedYearSem = reloadedCourse.yearSemesterSections.find(
+            ys => ys.year === year && ys.semester === semester
+          );
+          
+          // Build sectionFacultyArray with proper section _ids from reloaded course
+          const sectionFacultyArray = [];
+          console.log(`[Bulk Upload] Building section-faculty mappings for ${subjectName}:`);
+          console.log(`[Bulk Upload] sectionFacultyMap has ${sectionFacultyMap.size} entries:`, Array.from(sectionFacultyMap.entries()).map(([sec, fac]) => ({ section: sec, faculty: fac.name })));
+          
+          for (const [sectionName, faculty] of sectionFacultyMap) {
+            const section = reloadedYearSem.sections.find(s => s.sectionName === sectionName);
+            if (section) {
+              sectionFacultyArray.push({
+                section: section._id,
+                faculty: faculty._id
+              });
+              console.log(`[Bulk Upload] ✓ Mapped section "${sectionName}" (${section._id}) to faculty ${faculty.name} (${faculty._id})`);
+            } else {
+              console.error(`[Bulk Upload Error] ✗ Section "${sectionName}" not found after reload!`);
+            }
+          }
+          
+          console.log(`[Bulk Upload] Final Section-Faculty array for ${subjectName}:`, sectionFacultyArray.map(sf => ({ section: sf.section.toString(), faculty: sf.faculty.toString() })));
+
+          // Find or create subject
+          let subject = await Subject.findOne({
             course: course._id,
             year,
             semester,
-            faculty: faculty._id,
+            subjectName,
+            isActive: true,
           });
-        } else {
-          // Assign to faculty if not already assigned
-          if (subject.faculty?.toString() !== faculty._id.toString()) {
-            subject.faculty = faculty._id;
+
+          if (!subject) {
+            // Create new subject
+            const subjectData = {
+              subjectName,
+              subjectCode: subjectName.split(' ').map(w => w[0]).join('').toUpperCase(),
+              course: course._id,
+              year,
+              semester,
+              isLab: isLab || false,
+              isActive: true
+            };
+
+            if (sectionFacultyArray.length > 0) {
+              subjectData.sectionFaculty = sectionFacultyArray;
+            } else if (defaultFaculty) {
+              subjectData.faculty = defaultFaculty._id;
+            }
+
+            subject = await Subject.create(subjectData);
+            console.log(`[Bulk Upload] Created subject: ${subjectName} for ${course.courseName} (${course.courseCode}) Year ${year} Sem ${semester}`);
+            if (sectionFacultyArray.length > 0) {
+              console.log(`[Bulk Upload] With section-faculty assignments:`, sectionFacultyArray.length);
+            }
+          } else {
+            console.log(`[Bulk Upload] Updating existing subject: ${subjectName}`);
+            // Update existing subject
+            if (sectionFacultyArray.length > 0) {
+              // Merge with existing sectionFaculty
+              const existingMap = new Map(
+                subject.sectionFaculty.map(sf => [sf.section.toString(), sf.faculty.toString()])
+              );
+              
+              sectionFacultyArray.forEach(sf => {
+                existingMap.set(sf.section.toString(), sf.faculty.toString());
+              });
+              
+              subject.sectionFaculty = Array.from(existingMap.entries()).map(([section, faculty]) => ({
+                section,
+                faculty
+              }));
+            } else if (defaultFaculty) {
+              subject.faculty = defaultFaculty._id;
+            }
+            
+            // Update isLab flag if specified
+            if (isLab !== undefined) {
+              subject.isLab = isLab;
+            }
+            
             await subject.save();
           }
+
+          // Link faculty to subject
+          const allFaculty = [...sectionFacultyMap.values()];
+          if (defaultFaculty) allFaculty.push(defaultFaculty);
+          
+          for (const faculty of allFaculty) {
+            await Faculty.findByIdAndUpdate(faculty._id, { $addToSet: { subjects: subject._id } });
+          }
+
+          results.push({ 
+            subject: subjectName,
+            course: course.courseName,
+            year,
+            semester,
+            status: 'ok', 
+            subjectId: subject._id,
+            sectionsCreated: sectionsCreated.length > 0 ? sectionsCreated : undefined,
+            sectionFacultyCount: sectionFacultyArray.length
+          });
+
+        } catch (error) {
+          console.error('Error processing subject group:', error);
+          results.push({ 
+            subject: group.subjectName, 
+            status: 'error', 
+            reason: error.message 
+          });
         }
-
-        // Ensure faculty.subjects contains subject
-        await Faculty.findByIdAndUpdate(faculty._id, { $addToSet: { subjects: subject._id } });
-
-        results.push({ phoneNumber, status: 'ok', facultyId: faculty._id, subjectId: subject._id });
       }
 
+      // Summary logging
+      const successCount = results.filter(r => r.status === 'ok').length;
+      const errorCount = results.filter(r => r.status === 'error').length;
+      const totalSectionsCreated = results.reduce((sum, r) => sum + (r.sectionsCreated?.length || 0), 0);
+      
+      console.log(`\n[Bulk Upload Summary]`);
+      console.log(`✅ Successful: ${successCount}`);
+      console.log(`❌ Errors: ${errorCount}`);
+      console.log(`📅 Year-Semesters auto-created: ${yearSemestersCreated.length}`);
+      if (yearSemestersCreated.length > 0) {
+        console.log(`   ${yearSemestersCreated.join(', ')}`);
+      }
+      console.log(`📚 Total sections auto-created: ${totalSectionsCreated}`);
+      console.log(`📊 Results:`, results.map(r => ({ subject: r.subject, course: r.course, status: r.status })));
+      
       res.json({ results });
     } catch (error) {
       console.error('Bulk upload faculty error:', error);
-      res.status(500).json({ message: 'Server error' });
+      res.status(500).json({ message: 'Server error', error: error.message });
     }
   }
 };

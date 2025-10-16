@@ -113,22 +113,45 @@ const SubjectManagement = () => {
     return courseObj ? courseObj.courseName : 'Unknown Course';
   };
 
-  // Helper function to get faculty name
-  const getFacultyName = (faculty) => {
-    if (!faculty) return 'Not Assigned';
-    if (typeof faculty === 'object' && faculty.name) {
-      return faculty.name;
+  // Helper function to get faculty name or section assignments
+  const getFacultyDisplay = (subject) => {
+    // Debug log
+    console.log(`Subject: ${subject.subjectName}, sectionFaculty:`, subject.sectionFaculty);
+    
+    // Check if there are section-specific faculty assignments
+    if (subject.sectionFaculty && subject.sectionFaculty.length > 0) {
+      const sectionCount = subject.sectionFaculty.length;
+      return `${sectionCount} Section${sectionCount > 1 ? 's' : ''} Assigned`;
     }
-    // Fallback to lookup if faculty is just an ID
-    const facultyMember = faculty.find(f => f._id === faculty);
-    return facultyMember ? facultyMember.name : 'Unknown Faculty';
+    
+    // Otherwise check default faculty
+    if (!subject.faculty) return 'Not Assigned';
+    if (typeof subject.faculty === 'object' && subject.faculty.name) {
+      return subject.faculty.name;
+    }
+    return 'Unknown Faculty';
+  };
+
+  // Helper function for search (checks both default faculty and section faculty)
+  const getFacultyNameForSearch = (subject) => {
+    if (subject.sectionFaculty && subject.sectionFaculty.length > 0) {
+      // Return all faculty names from section assignments for search
+      return subject.sectionFaculty
+        .map(sf => sf.faculty?.name || '')
+        .filter(name => name)
+        .join(' ');
+    }
+    if (subject.faculty && typeof subject.faculty === 'object' && subject.faculty.name) {
+      return subject.faculty.name;
+    }
+    return '';
   };
 
   // Filter and search subjects
   const filteredSubjects = subjects.filter(s => {
     const matchesSearch = s.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       getCourseName(s.course).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getFacultyName(s.faculty).toLowerCase().includes(searchTerm.toLowerCase());
+      getFacultyNameForSearch(s).toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
 
@@ -262,14 +285,19 @@ const SubjectManagement = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm">
-                        <User className={`h-4 w-4 mr-2 ${subject.faculty ? 'text-gray-400' : 'text-orange-400'}`} />
+                        <User className={`h-4 w-4 mr-2 ${(subject.faculty || (subject.sectionFaculty && subject.sectionFaculty.length > 0)) ? 'text-gray-400' : 'text-orange-400'}`} />
                         <div>
-                          <div className={subject.faculty ? 'text-gray-900' : 'text-orange-600 font-medium'}>
-                            {getFacultyName(subject.faculty)}
+                          <div className={(subject.faculty || (subject.sectionFaculty && subject.sectionFaculty.length > 0)) ? 'text-gray-900' : 'text-orange-600 font-medium'}>
+                            {getFacultyDisplay(subject)}
                           </div>
                           {typeof subject.faculty === 'object' && subject.faculty.designation && (
                             <div className="text-xs text-gray-500">
                               {subject.faculty.designation} - {subject.faculty.department}
+                            </div>
+                          )}
+                          {subject.sectionFaculty && subject.sectionFaculty.length > 0 && (
+                            <div className="text-xs text-blue-600">
+                              Section-wise assignments
                             </div>
                           )}
                         </div>

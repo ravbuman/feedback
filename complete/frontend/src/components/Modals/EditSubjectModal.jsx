@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, BookOpen, GraduationCap, User, Calendar, Hash, Loader2 } from 'lucide-react';
+import { X, BookOpen, GraduationCap, User, Calendar, Hash, Loader2, Users, FlaskConical } from 'lucide-react';
 import { adminAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 
 const EditSubjectModal = ({ isOpen, onClose, onSuccess, subject, courses, faculty }) => {
   const [loading, setLoading] = useState(false);
+  const [sectionFacultyMap, setSectionFacultyMap] = useState({});
   const {
     register,
     handleSubmit,
@@ -16,21 +17,73 @@ const EditSubjectModal = ({ isOpen, onClose, onSuccess, subject, courses, facult
   } = useForm();
 
   const selectedCourse = watch('course');
+  const selectedYear = watch('year');
+  const selectedSemester = watch('semester');
+
+  // Get sections for selected year-semester
+  const availableSections = useMemo(() => {
+    if (!selectedCourse || !selectedYear || !selectedSemester) return [];
+    const course = courses.find(c => c._id === selectedCourse);
+    if (!course) return [];
+    const yearSemData = course.yearSemesterSections?.find(
+      ys => ys.year === parseInt(selectedYear) && ys.semester === parseInt(selectedSemester)
+    );
+    return yearSemData?.sections || [];
+  }, [selectedCourse, selectedYear, selectedSemester, courses]);
 
   useEffect(() => {
     if (subject && isOpen) {
       setValue('subjectName', subject.subjectName || '');
-      setValue('course', subject.course || '');
+      setValue('course', subject.course?._id || subject.course || '');
       setValue('year', subject.year || '');
       setValue('semester', subject.semester || '');
-      setValue('faculty', subject.faculty || '');
+      setValue('faculty', subject.faculty?._id || subject.faculty || '');
+      setValue('isLab', subject.isLab || false);
+      
+      // Load section-specific faculty if exists
+      if (subject.sectionFaculty && Array.isArray(subject.sectionFaculty)) {
+        const map = {};
+        subject.sectionFaculty.forEach(sf => {
+          map[sf.section] = sf.faculty?._id || sf.faculty;
+        });
+        setSectionFacultyMap(map);
+      }
     }
   }, [subject, isOpen, setValue]);
+
+  // Update section faculty map when sections change
+  useEffect(() => {
+    if (availableSections.length > 0 && Object.keys(sectionFacultyMap).length === 0) {
+      const initialMap = {};
+      availableSections.forEach(section => {
+        initialMap[section._id] = '';
+      });
+      setSectionFacultyMap(initialMap);
+    }
+  }, [availableSections]);
 
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      const response = await adminAPI.updateSubject(subject._id, data);
+      const payload = { ...data };
+      
+      // If sections exist, use section-specific faculty
+      if (availableSections.length > 0) {
+        const sectionFaculty = [];
+        Object.entries(sectionFacultyMap).forEach(([sectionId, facultyId]) => {
+          if (facultyId) {
+            sectionFaculty.push({ section: sectionId, faculty: facultyId });
+          }
+        });
+        
+        if (sectionFaculty.length > 0) {
+          payload.sectionFaculty = sectionFaculty;
+          delete payload.faculty; // Remove default faculty if using section-specific
+        }
+      }
+      // Otherwise, use default faculty field (already in data)
+      
+      const response = await adminAPI.updateSubject(subject._id, payload);
       toast.success('Subject updated successfully!');
       onSuccess?.(response.data);
       onClose();
@@ -48,7 +101,15 @@ const EditSubjectModal = ({ isOpen, onClose, onSuccess, subject, courses, facult
 
   const handleClose = () => {
     reset();
+    setSectionFacultyMap({});
     onClose();
+  };
+
+  const handleSectionFacultyChange = (sectionId, facultyId) => {
+    setSectionFacultyMap(prev => ({
+      ...prev,
+      [sectionId]: facultyId
+    }));
   };
 
   if (!isOpen || !subject) return null;
@@ -96,6 +157,25 @@ const EditSubjectModal = ({ isOpen, onClose, onSuccess, subject, courses, facult
             {errors.subjectName && (
               <p className="mt-1 text-sm text-red-600">{errors.subjectName.message}</p>
             )}
+          </div>
+
+          {/* Lab Subject Checkbox */}
+          <div className="flex items-start space-x-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <input
+              type="checkbox"
+              {...register('isLab')}
+              className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              id="isLab"
+            />
+            <div className="flex-1">
+              <label htmlFor="isLab" className="flex items-center text-sm font-medium text-gray-900 cursor-pointer">
+                <FlaskConical className="h-4 w-4 mr-2 text-blue-600" />
+                This is a Lab Subject
+              </label>
+              <p className="mt-1 text-xs text-gray-600">
+                For lab subjects, MCQ questions will be treated as text responses to allow descriptive feedback about practical work.
+              </p>
+            </div>
           </div>
 
           {/* Course Selection */}
@@ -173,27 +253,60 @@ const EditSubjectModal = ({ isOpen, onClose, onSuccess, subject, courses, facult
             </div>
           </div>
 
-          {/* Faculty Selection */}
-          <div>
-            <label className="label flex items-center">
-              <User className="h-4 w-4 mr-2 text-gray-500" />
-              Faculty (Optional)
-            </label>
-            <select
-              {...register('faculty')}
-              className="input"
-            >
-              <option value="">Select a faculty member (optional)</option>
-              {faculty.map((facultyMember) => (
-                <option key={facultyMember._id} value={facultyMember._id}>
-                  {facultyMember.name} - {facultyMember.designation} ({facultyMember.department})
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-gray-500">
-              Leave empty to unassign faculty from this subject
-            </p>
-          </div>
+          {/* Faculty Selection - Section-specific or Default */}
+          {availableSections.length > 0 ? (
+            <div>
+              <label className="label flex items-center">
+                <Users className="h-4 w-4 mr-2 text-gray-500" />
+                Faculty Assignment by Section
+              </label>
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                {availableSections.map((section) => (
+                  <div key={section._id} className="flex items-center space-x-3">
+                    <label className="text-sm font-medium text-gray-700 w-24">
+                      Section {section.sectionName}
+                    </label>
+                    <select
+                      value={sectionFacultyMap[section._id] || ''}
+                      onChange={(e) => handleSectionFacultyChange(section._id, e.target.value)}
+                      className="input flex-1"
+                    >
+                      <option value="">Select faculty</option>
+                      {faculty.map((facultyMember) => (
+                        <option key={facultyMember._id} value={facultyMember._id}>
+                          {facultyMember.name} - {facultyMember.designation}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Assign different faculty for each section
+              </p>
+            </div>
+          ) : (
+            <div>
+              <label className="label flex items-center">
+                <User className="h-4 w-4 mr-2 text-gray-500" />
+                Faculty (Optional)
+              </label>
+              <select
+                {...register('faculty')}
+                className="input"
+              >
+                <option value="">Select a faculty member (optional)</option>
+                {faculty.map((facultyMember) => (
+                  <option key={facultyMember._id} value={facultyMember._id}>
+                    {facultyMember.name} - {facultyMember.designation} ({facultyMember.department})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                This year-semester has no sections. Assign a default faculty.
+              </p>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex space-x-3 pt-4">

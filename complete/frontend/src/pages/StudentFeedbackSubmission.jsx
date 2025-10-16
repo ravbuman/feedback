@@ -107,9 +107,10 @@ const StudentFeedbackSubmission = () => {
 
   useEffect(() => {
     if (watchedCourse && watchedYear && watchedSemester) {
-      fetchSubjects(watchedCourse, watchedYear, watchedSemester);
+      const section = watch('section'); // Get current section value
+      fetchSubjects(watchedCourse, watchedYear, watchedSemester, section);
     }
-  }, [watchedCourse, watchedYear, watchedSemester]);
+  }, [watchedCourse, watchedYear, watchedSemester, watch('section')]);
 
   const fetchInitialData = async () => {
     try {
@@ -193,7 +194,7 @@ const StudentFeedbackSubmission = () => {
     );
   };
 
-  const fetchSubjects = async (courseId, year, semester) => {
+  const fetchSubjects = async (courseId, year, semester, section) => {
     try {
       if (feedbackForm?.isGlobal) {
         // For global forms, create a virtual training subject
@@ -210,8 +211,8 @@ const StudentFeedbackSubmission = () => {
         };
         setSubjects([trainingSubject]);
       } else {
-        // For regular forms, fetch actual subjects
-        const response = await studentAPI.getSubjectsByCourse(courseId, year, semester);
+        // For regular forms, fetch actual subjects with section-specific faculty
+        const response = await studentAPI.getSubjectsByCourse(courseId, year, semester, section);
         setSubjects(response.data);
       }
     } catch (error) {
@@ -309,6 +310,30 @@ const StudentFeedbackSubmission = () => {
 
   const renderQuestion = (question, questionIndex, subjectId) => {
     const responseValue = responses[subjectId]?.[questionIndex] || '';
+    
+    // Check if current subject is a lab
+    const currentSubject = subjects.find(s => s._id === subjectId);
+    const isLabSubject = currentSubject?.isLab === true;
+    
+    // For lab subjects, override MCQ to textarea
+    if (isLabSubject && question.questionType === 'multiplechoice') {
+      return (
+        <div>
+          <textarea
+            value={responseValue}
+            onChange={(e) => handleResponseChange(subjectId, questionIndex, e.target.value)}
+            className="input"
+            rows={4}
+            placeholder="Enter your answer (Lab subjects require descriptive responses)"
+            required={question.isRequired}
+          />
+          <p className="mt-1 text-xs text-blue-600 flex items-center">
+            <span className="mr-1">🔬</span>
+            Lab subject - Text response required instead of multiple choice
+          </p>
+        </div>
+      );
+    }
 
     switch (question.questionType) {
       case 'text':
@@ -752,7 +777,14 @@ const StudentFeedbackSubmission = () => {
                             <div className="flex items-center">
                               <BookOpen className="h-6 w-6 text-purple-600 mr-3" />
                               <div>
-                                <h3 className="text-lg font-bold text-gray-900">{subject.subjectName}</h3>
+                                <div className="flex items-center gap-2">
+                                  <h3 className="text-lg font-bold text-gray-900">{subject.subjectName}</h3>
+                                  {subject.isLab && (
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
+                                      🔬 Lab
+                                    </span>
+                                  )}
+                                </div>
                                 {subject.faculty && (
                                   <p className="text-sm text-gray-500">
                                     Faculty: {typeof subject.faculty === 'object' ? subject.faculty.name : 'Loading...'}

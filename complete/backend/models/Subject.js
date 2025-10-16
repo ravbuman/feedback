@@ -1,9 +1,26 @@
 const mongoose = require('mongoose');
 
+// Schema for section-specific faculty assignments
+const sectionFacultySchema = new mongoose.Schema({
+  section: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
+  },
+  faculty: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Faculty',
+    required: true
+  }
+}, { _id: false });
+
 const subjectSchema = new mongoose.Schema({
   subjectName: {
     type: String,
     required: true,
+    trim: true
+  },
+  subjectCode: {
+    type: String,
     trim: true
   },
   course: {
@@ -23,10 +40,19 @@ const subjectSchema = new mongoose.Schema({
     min: 1,
     max: 2
   },
+  // Section-specific faculty assignments (NEW)
+  sectionFaculty: [sectionFacultySchema],
+  
+  // Keep for backward compatibility (subjects without sections)
   faculty: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Faculty',
     required: false
+  },
+  // Lab subject flag - MCQ questions will be treated as text for labs
+  isLab: {
+    type: Boolean,
+    default: false
   },
   isActive: {
     type: Boolean,

@@ -1,0 +1,66 @@
+Name,Dept/Course,Designation,Subject,Year,Semester,Section,Phone Number,Subject Type
+James Taylor,ME,Asst Prof,Circuit Theory,2,2,B,9876512400,Lab
+Sita Reddy,ME,Professor,Network Security,3,2,C,9876540983,Lab
+Pooja Sharma,ME,Lecturer,Data Structures,3,2,A,9876507056,Theory
+Vineet Mehra,ME,Professor,Neural Networks,4,2,B,9876512601,Theory
+Mark Evans,AIML,Professor,Neural Networks,4,1,B,9876501829,Lab
+Priya Nair,ME,Lecturer,Python Programming,4,1,C,9876598804,Lab
+Tanya George,AI,Lecturer,Circuit Theory,3,2,C,9876545991,Theory
+Manish Tiwari,CSE,Lecturer,Power Systems,1,2,C,9876530215,Theory
+Priya Nair,ECE,Asst Prof,Algorithms,1,2,C,9876547564,Lab
+Sita Reddy,AI,Professor,Thermodynamics,4,1,C,9876558016,Lab
+Olivia Davis,AIML,Professor,Data Structures,3,2,A,9876589901,Theory
+Rohan Das,ECE,Asst Prof,Microprocessors,2,2,C,9876523347,Lab
+Jane Smith,CSE,Asst Prof,Data Structures,4,2,B,9876576139,Theory
+Gaurav Joshi,ECE,Professor,Python Programming,2,1,A,9876564133,Theory
+Vishal Menon,CSE,Asst Prof,Cyber Security,4,2,A,9876517566,Lab
+Michael Green,ECE,Lecturer,Power Systems,1,2,B,9876534714,Theory
+Arjun Mehta,ME,Professor,Python Programming,1,2,C,9876513723,Theory
+Jane Smith,AIML,Professor,Operating Systems,2,1,B,9876549131,Lab
+Sana Khan,CSE,Asst Prof,Network Security,2,1,A,9876574135,Lab
+Manish Tiwari,ECE,Lecturer,Python Programming,1,2,A,9876599148,Lab
+Emma Brown,AIML,Lecturer,Control Systems,2,1,A,9876502698,Lab
+Anjali Verma,AI,Lecturer,VLSI Design,2,1,A,9876510310,Theory
+John Doe,CSE,Professor,Cloud Computing,4,1,B,9876553226,Theory
+Harini Iyer,AIML,Asst Prof,Software Engineering,2,1,C,9876582883,Lab
+Emma Brown,CSE,Asst Prof,Python Programming,4,1,B,9876508041,Theory
+Emma Brown,AIMLAIMECH,Professor,Software Engineering,2,2,A,9876590448,Theory
+Liam Johnson,AI,Asst Prof,AI Lab,1,1,C,9876503274,Lab
+Rakesh Kumar,CSE,Asst Prof,Network Security,3,1,B,9876565957,Theory
+Rakesh Kumar,AI,Professor,Data Science,1,1,C,9876525347,Theory
+Krishna Rao,AI,Asst Prof,Artificial Intelligence,3,2,A,9876537000,Theory
+Tanya George,ME,Lecturer,Surveying,4,1,B,9876558078,Lab
+Vineet Mehra,AIMLAIMECH,Asst Prof,CAD Lab,3,1,C,9876530610,Lab
+Krishna Rao,AIML,Lecturer,Circuit Theory,1,1,C,9876545465,Lab
+Naveen Pillai,AIMLAIMECH,Asst Prof,Thermodynamics,2,1,C,9876511881,Theory
+Jane Smith,ME,Asst Prof,Surveying,4,1,B,9876529596,Lab
+Jane Smith,AIMLAIMECH,Professor,Data Science,3,1,A,9876552543,Theory
+Sneha Iyer,AIMLAIMECH,Asst Prof,Power Systems,3,1,B,9876564621,Lab
+Manish Tiwari,AIMLAIMECH,Professor,Python Programming,3,2,B,9876519244,Lab
+Priya Nair,CSE,Lecturer,DBMS,3,2,A,9876596930,Theory
+Shweta Patel,AI,Lecturer,Thermodynamics,4,2,B,9876585229,Lab
+Samuel Lee,CSE,Asst Prof,Network Security,3,2,A,9876509097,Theory
+Sneha Iyer,ECE,Asst Prof,Thermodynamics,4,1,A,9876516857,Theory
+Anjali Verma,ECE,Professor,Control Systems,1,2,C,9876583609,Lab
+Meera Pillai,ECE,Lecturer,Thermodynamics,4,2,C,9876502796,Lab
+Nina Patel,ECE,Asst Prof,Circuit Theory,4,1,B,9876533769,Theory
+Vijay Patil,ECE,Professor,Operating Systems,2,1,A,9876544804,Theory
+Daniel White,CSE,Lecturer,Network Security,1,1,A,9876529816,Lab
+Sana Khan,ME,Professor,Machine Design,2,2,A,9876571379,Lab
+Daniel White,ME,Asst Prof,Cyber Security,1,1,C,9876559462,Theory
+Sophia Thomas,ME,Professor,Software Engineering,3,2,A,9876581914,Lab
+Samuel Lee,AIMLAIMECH,Professor,Control Systems,2,1,B,9876579726,Theory
+Bob Wilson,CSE,Asst Prof,AI Lab,1,2,C,9876547620,Lab
+Arjun Mehta,AIML,Lecturer,Microprocessors,3,2,C,9876551439,Lab
+Emma Brown,AIMLAIMECH,Professor,Machine Design,4,1,C,9876545644,Lab
+Rakesh Kumar,ME,Asst Prof,Microprocessors,3,2,C,9876571363,Lab
+Harish Kumar,AIML,Asst Prof,Surveying,3,2,A,9876583650,Theory
+Sophia Thomas,CSE,Asst Prof,Circuit Theory,2,1,B,9876562750,Lab
+Abhinav Desai,AIMLAIMECH,Professor,CAD Lab,3,2,B,9876563719,Lab
+John Doe,ECE,Professor,CAD Lab,4,2,C,9876545140,Lab
+Ashok Rao,AIMLAIMECH,Professor,Power Systems,4,2,C,9876526235,Lab
+Harish Kumar,ME,Professor,Data Structures,1,2,A,9876570760,Theory
+Vijay Patil,ME,Professor,CAD Lab,2,1,B,9876539707,Lab
+Aditya Sen,ECE,Asst Prof,Digital Electronics,2,2,B,9876537013,Lab
+Shweta Patel,AI,Asst Prof,Artificial Intelligence,3,1,B,9876507349,Theory
+Vineet Mehra,ECE,Lecturer,VLSI Design,1,1,C,9876502876,Lab

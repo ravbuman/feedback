@@ -57,10 +57,11 @@ const getAllCourses = async (req, res) => {
   }
 };
 
-// Get subjects for a specific course, year, and semester
+// Get subjects for a specific course, year, semester, and section
 const getSubjectsByCourse = async (req, res) => {
   try {
     const { courseId, year, semester } = req.params;
+    const { section } = req.query; // Section is now optional query parameter
 
     const subjects = await Subject.find({
       course: courseId,
@@ -70,12 +71,44 @@ const getSubjectsByCourse = async (req, res) => {
     })
       .populate('course', 'courseName courseCode')
       .populate('faculty', 'name designation department')
+      .populate('sectionFaculty.faculty', 'name designation department')
+      .populate('sectionFaculty.section')
       .sort({ subjectName: 1 });
 
     if (subjects.length === 0) {
       return res.status(404).json({ message: 'No subjects found for the selected criteria' });
     }
 
+    // If section is provided, filter and format subjects with section-specific faculty
+    if (section) {
+      const formattedSubjects = subjects.map(subject => {
+        // Find faculty for this specific section
+        const sectionFacultyEntry = subject.sectionFaculty.find(
+          sf => sf.section.toString() === section
+        );
+        
+        // Use section-specific faculty if found, otherwise use default faculty
+        const facultyForSection = sectionFacultyEntry ? sectionFacultyEntry.faculty : subject.faculty;
+        
+        return {
+          _id: subject._id,
+          subjectName: subject.subjectName,
+          subjectCode: subject.subjectCode,
+          course: subject.course,
+          year: subject.year,
+          semester: subject.semester,
+          faculty: facultyForSection, // Section-specific faculty
+          isLab: subject.isLab, // Include lab flag
+          isActive: subject.isActive,
+          createdAt: subject.createdAt,
+          updatedAt: subject.updatedAt
+        };
+      });
+      
+      return res.json(formattedSubjects);
+    }
+
+    // If no section provided, return subjects with default faculty (backward compatibility)
     res.json(subjects);
   } catch (error) {
     console.error('Get subjects error:', error);
