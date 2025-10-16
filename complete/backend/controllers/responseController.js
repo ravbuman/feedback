@@ -594,12 +594,19 @@ const getFacultyQuestionAnalytics = async (req, res) => {
     const responses = await Response.find(filter)
       .populate({
         path: 'subjectResponses.subject',
-        populate: {
-          path: 'faculty',
-          model: 'Faculty'
-        }
+        populate: [
+          {
+            path: 'faculty',
+            model: 'Faculty'
+          },
+          {
+            path: 'sectionFaculty.faculty',
+            model: 'Faculty'
+          }
+        ]
       })
-      .populate('subjectResponses.form');
+      .populate('subjectResponses.form')
+      .populate('courseInfo.course');
 
     if (responses.length === 0) {
       return res.json([]);
@@ -609,17 +616,45 @@ const getFacultyQuestionAnalytics = async (req, res) => {
     const facultyData = {};
 
     responses.forEach(response => {
+      const studentSection = response.courseInfo.section;
+      
       response.subjectResponses.forEach(sr => {
-        if (sr.subject && sr.subject.faculty) {
-          const facultyId = sr.subject.faculty._id.toString();
-          if (!facultyData[facultyId]) {
-            facultyData[facultyId] = {
-              faculty: sr.subject.faculty,
-              responses: []
-            };
+        if (!sr.subject) return;
+        
+        // Find the correct faculty for this student's section
+        let faculty = null;
+        
+        // Check if subject has section-specific faculty assignments
+        if (sr.subject.sectionFaculty && sr.subject.sectionFaculty.length > 0 && studentSection) {
+          // Find faculty for this specific section
+          const sectionFacultyEntry = sr.subject.sectionFaculty.find(
+            sf => sf.section && sf.section.toString() === studentSection.toString()
+          );
+          if (sectionFacultyEntry && sectionFacultyEntry.faculty) {
+            faculty = sectionFacultyEntry.faculty;
           }
-          facultyData[facultyId].responses.push(sr);
         }
+        
+        // Fall back to default faculty if no section-specific faculty found
+        if (!faculty && sr.subject.faculty) {
+          faculty = sr.subject.faculty;
+        }
+        
+        // Skip if no faculty found
+        if (!faculty) {
+          return;
+        }
+        
+        const facultyId = faculty._id.toString();
+        if (!facultyData[facultyId]) {
+          facultyData[facultyId] = {
+            faculty: faculty,
+            responses: [],
+            subjects: new Set()
+          };
+        }
+        facultyData[facultyId].responses.push(sr);
+        facultyData[facultyId].subjects.add(sr.subject.subjectName);
       });
     });
 
@@ -776,7 +811,7 @@ const getFacultyQuestionAnalytics = async (req, res) => {
 
     // Process analytics for each faculty for non-global forms
     const result = Object.values(facultyData).map(data => {
-      const { faculty, responses } = data;
+      const { faculty, responses, subjects } = data;
 
       const questionAnalytics = questions.map((question, index) => {
         const answers = responses.map(sr => sr.answers[index]).filter(a => a !== undefined && a !== null);
@@ -833,11 +868,9 @@ const getFacultyQuestionAnalytics = async (req, res) => {
         };
       });
 
-      const subjectNames = [...new Set(responses.map(sr => sr.subject.subjectName))];
-
       return {
         faculty,
-        subjects: subjectNames,
+        subjects: Array.from(subjects),
         questionAnalytics,
       };
     });
