@@ -733,7 +733,7 @@ module.exports = {
       
       for (const [subjectKey, group] of subjectGroups) {
         try {
-          const { subjectName, course, year, semester, sectionFacultyMap, defaultFaculty, isLab } = group;
+          let { subjectName, course, year, semester, sectionFacultyMap, defaultFaculty, isLab } = group;
 
           // Find or create year-semester in course
           let yearSemData = course.yearSemesterSections?.find(

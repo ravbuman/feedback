@@ -640,12 +640,17 @@ const getFacultyQuestionAnalytics = async (req, res) => {
           faculty = sr.subject.faculty;
         }
         
-        // Skip if no faculty found
+        // If still no faculty, create a placeholder "Not Assigned" faculty
         if (!faculty) {
-          return;
+          faculty = {
+            _id: 'not-assigned',
+            name: 'Not Assigned',
+            designation: '',
+            department: ''
+          };
         }
         
-        const facultyId = faculty._id.toString();
+        const facultyId = faculty._id.toString ? faculty._id.toString() : faculty._id;
         if (!facultyData[facultyId]) {
           facultyData[facultyId] = {
             faculty: faculty,
@@ -990,14 +995,16 @@ const exportComprehensiveAnalytics = async (req, res) => {
             faculty = sr.subject.faculty;
           }
           
-          // Skip if no faculty found
-          if (!faculty) {
-            console.warn(`No faculty found for subject ${subjectName} in section ${sectionName}`);
-            return;
-          }
+          // If still no faculty, use "Not Assigned" placeholder
+          let facultyName = 'Not Assigned';
+          let facultyId = 'not-assigned';
           
-          const facultyName = faculty.name;
-          const facultyId = faculty._id.toString();
+          if (faculty) {
+            facultyName = faculty.name;
+            facultyId = faculty._id.toString();
+          } else {
+            console.warn(`No faculty found for subject ${subjectName} in section ${sectionName} - grouping under "Not Assigned"`);
+          }
 
           // Create unique key
           const key = `${year}|${semester}|${courseName}|${sectionName}|${subjectName}|${facultyId}`;
