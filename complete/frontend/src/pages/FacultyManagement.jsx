@@ -73,6 +73,11 @@ const FacultyManagement = () => {
     }));
   };
 
+  const handleBulkUploadSuccess = () => {
+    fetchFaculty();
+    toast.success('Bulk upload completed successfully!');
+  };
+
   const handleEdit = (faculty) => {
     setSelectedFaculty(faculty);
     setShowEditModal(true);
@@ -342,6 +347,7 @@ const FacultyManagement = () => {
       <BulkUploadFacultyModal
         isOpen={showBulkUploadModal}
         onClose={() => setShowBulkUploadModal(false)}
+        onSuccess={handleBulkUploadSuccess}
       />
 
       <EditFacultyModal

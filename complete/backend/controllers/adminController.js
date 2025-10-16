@@ -210,17 +210,24 @@ const updateCourse = async (req, res) => {
 
 const deleteCourse = async (req, res) => {
   try {
-    const course = await Course.findByIdAndUpdate(
-      req.params.id,
-      { isActive: false },
-      { new: true }
-    );
-
+    const courseId = req.params.id;
+    const course = await Course.findById(courseId);
     if (!course) {
       return res.status(404).json({ message: 'Course not found' });
     }
 
-    res.json({ message: 'Course deactivated successfully' });
+    // Find all subjects related to this course
+    const subjectsToDelete = await Subject.find({ course: courseId });
+    const subjectIdsToDelete = subjectsToDelete.map(s => s._id);
+
+    // Delete all responses for those subjects
+    await Response.deleteMany({ 'subjectResponses.subject': { $in: subjectIdsToDelete } });
+    // Delete the subjects themselves
+    await Subject.deleteMany({ course: courseId });
+    // Finally, delete the course
+    await Course.findByIdAndDelete(courseId);
+
+    res.json({ message: 'Course and all related subjects and responses deleted successfully' });
   } catch (error) {
     console.error('Delete course error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -581,43 +588,55 @@ module.exports = {
 
       // Fetch once to map courseName -> _id
       const courses = await Course.find({ isActive: true });
-      const courseByName = new Map(courses.map(c => [c.courseName.toLowerCase(), c]));
+      const courseMap = new Map();
+      courses.forEach(c => { courseMap.set(c.courseName.toLowerCase(), c); courseMap.set(c.courseCode.toLowerCase(), c); });
 
       const results = [];
       for (const item of items) {
         const name = item.name?.trim();
-        const phoneNumber = item.phoneNumber?.trim();
+        const phoneNumber = item.phoneNumber?.trim() || null;
         const designation = item.designation?.trim();
         const department = item.department?.trim();
         const subjectInfo = item.subject || {};
 
-        if (!name || !phoneNumber || !designation || !department) {
+        if (!name || !designation || !department) {
           results.push({ phoneNumber, status: 'skipped', reason: 'Missing required fields' });
           continue;
         }
 
-        // Upsert faculty by phoneNumber
-        let faculty = await Faculty.findOneAndUpdate(
-          { phoneNumber },
-          { name, designation, department, isActive: true },
-          { new: true }
-        );
+        let faculty;
+        // Find faculty by phone number if provided, otherwise by name and department
+        if (phoneNumber) {
+          faculty = await Faculty.findOne({ phoneNumber });
+        } else {
+          faculty = await Faculty.findOne({ name, department });
+        }
+
         if (!faculty) {
-          faculty = await Faculty.create({ name, phoneNumber, designation, department });
+          // Create new faculty if not found
+          faculty = await Faculty.create({ name, phoneNumber, designation, department, isActive: true });
+        } else {
+          // Update existing faculty
+          faculty.name = name;
+          faculty.designation = designation;
+          faculty.department = department;
+          faculty.isActive = true; // Ensure they are active
+          if (phoneNumber) faculty.phoneNumber = phoneNumber;
+          await faculty.save();
         }
 
         // Subject handling
         const courseName = (subjectInfo.courseName || department || '').toString();
-        const course = courseByName.get(courseName.toLowerCase());
+        const course = courseMap.get(courseName.toLowerCase());
         if (!course) {
           results.push({ phoneNumber, status: 'partial', reason: `Course not found: ${courseName}` });
           continue;
         }
 
         const year = parseInt(subjectInfo.year, 10);
-        const semesterParsed = parseInt(subjectInfo.semester, 10);
-        const semester = !isNaN(semesterParsed) && semesterParsed >= 1 && semesterParsed <= 2 ? semesterParsed : null;
-        if (!subjectInfo.name || !year || !semester) {
+        const semester = parseInt(subjectInfo.semester, 10);
+
+        if (!subjectInfo.name || !year || isNaN(semester)) {
           // Skip subject creation/assignment if info insufficient; faculty was upserted already
           results.push({ phoneNumber, status: 'ok', facultyId: faculty._id, note: 'Subject skipped due to incomplete year/semester/name' });
           continue;
@@ -641,9 +660,11 @@ module.exports = {
             faculty: faculty._id,
           });
         } else {
-          // Assign to faculty if not already
-          subject.faculty = faculty._id;
-          await subject.save();
+          // Assign to faculty if not already assigned
+          if (subject.faculty?.toString() !== faculty._id.toString()) {
+            subject.faculty = faculty._id;
+            await subject.save();
+          }
         }
 
         // Ensure faculty.subjects contains subject

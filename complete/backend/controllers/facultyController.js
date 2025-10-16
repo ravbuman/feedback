@@ -103,20 +103,19 @@ exports.deleteFaculty = async (req, res) => {
 // Bulk upload faculty and subjects
 exports.bulkUploadFaculty = async (req, res) => {
   const { items } = req.body;
-  const session = await mongoose.startSession();
-  session.startTransaction();
 
   try {
     const results = [];
     for (const item of items) {
       let faculty;
       // Find or create faculty
+      // Note: Sessions are removed for simplicity; transactions can be added back if complex atomicity is needed.
       if (item.phoneNumber) {
-        faculty = await Faculty.findOne({ phoneNumber: item.phoneNumber }).session(session);
+        faculty = await Faculty.findOne({ phoneNumber: item.phoneNumber });
       }
 
       if (!faculty) {
-        faculty = await Faculty.findOne({ name: item.name, department: item.department }).session(session);
+        faculty = await Faculty.findOne({ name: item.name, department: item.department });
       }
 
       if (!faculty) {
@@ -126,11 +125,11 @@ exports.bulkUploadFaculty = async (req, res) => {
           department: item.department,
           designation: item.designation,
         });
-        await faculty.save({ session });
+        await faculty.save();
       }
 
       // Find or create subject
-      const course = await Course.findOne({ courseName: item.subject.courseName }).session(session);
+      const course = await Course.findOne({ courseName: item.subject.courseName });
       if (!course) {
         // This case should ideally be handled by frontend validation
         throw new Error(`Course '${item.subject.courseName}' not found.`);
@@ -141,7 +140,7 @@ exports.bulkUploadFaculty = async (req, res) => {
         course: course._id,
         year: item.subject.year,
         semester: item.subject.semester,
-      }).session(session);
+      });
 
       if (!subject) {
         subject = new Subject({
@@ -152,26 +151,22 @@ exports.bulkUploadFaculty = async (req, res) => {
           semester: item.subject.semester,
           faculty: faculty._id,
         });
-        await subject.save({ session });
+        await subject.save();
       } else {
         subject.faculty = faculty._id;
-        await subject.save({ session });
+        await subject.save();
       }
 
       // Add subject to faculty's list
       if (!faculty.subjects.includes(subject._id)) {
         faculty.subjects.push(subject._id);
-        await faculty.save({ session });
+        await faculty.save();
       }
       results.push({ faculty, subject });
     }
 
-    await session.commitTransaction();
     res.status(201).json({ message: 'Bulk upload successful', data: results });
   } catch (error) {
-    await session.abortTransaction();
     res.status(500).json({ message: 'Bulk upload failed', error: error.message });
-  } finally {
-    session.endSession();
   }
 };
