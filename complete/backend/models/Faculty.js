@@ -8,9 +8,6 @@ const FacultySchema = new mongoose.Schema({
   },
   phoneNumber: {
     type: String,
-    // Not required, but should be unique if provided
-    unique: true,
-    sparse: true, // Allows multiple documents to have a null value for this field
     trim: true,
   },
   designation: {
