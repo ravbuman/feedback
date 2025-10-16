@@ -1,37 +1,34 @@
 const mongoose = require('mongoose');
 
-const facultySchema = new mongoose.Schema({
+const FacultySchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    trim: true
+    trim: true,
   },
   phoneNumber: {
     type: String,
-    required: true,
+    // Not required, but should be unique if provided
     unique: true,
-    trim: true
+    sparse: true, // Allows multiple documents to have a null value for this field
+    trim: true,
   },
   designation: {
     type: String,
     required: true,
-    trim: true
   },
   department: {
     type: String,
     required: true,
-    trim: true
   },
   subjects: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Subject'
+    ref: 'Subject',
   }],
   isActive: {
     type: Boolean,
-    default: true
-  }
-}, {
-  timestamps: true
-});
+    default: true,
+  },
+}, { timestamps: true });
 
-module.exports = mongoose.model('Faculty', facultySchema);
+module.exports = mongoose.model('Faculty', FacultySchema);
