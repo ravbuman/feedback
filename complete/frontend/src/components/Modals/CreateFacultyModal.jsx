@@ -51,15 +51,17 @@ const CreateFacultyModal = ({ isOpen, onClose, onSuccess }) => {
   const onSubmit = async (data) => {
     setLoading(true);
     try {
-      // Check if phone number already exists
-      const phoneExists = await checkPhoneNumberExists(data.phoneNumber);
-      if (phoneExists) {
-        setError('phoneNumber', {
-          type: 'manual',
-          message: 'Phone number already exists. Please use a different phone number.'
-        });
-        setLoading(false);
-        return;
+      // Check if phone number already exists, only if a phone number is provided
+      if (data.phoneNumber) {
+        const phoneExists = await checkPhoneNumberExists(data.phoneNumber);
+        if (phoneExists) {
+          setError('phoneNumber', {
+            type: 'manual',
+            message: 'Phone number already exists. Please use a different phone number.'
+          });
+          setLoading(false);
+          return;
+        }
       }
 
       const response = await adminAPI.createFaculty(data);
@@ -121,7 +123,7 @@ const CreateFacultyModal = ({ isOpen, onClose, onSuccess }) => {
             </label>
             <input
               type="text"
-              {...register('name', { 
+              {...register('name', {
                 required: 'Name is required',
                 minLength: { value: 2, message: 'Name must be at least 2 characters' }
               })}
@@ -137,18 +139,17 @@ const CreateFacultyModal = ({ isOpen, onClose, onSuccess }) => {
           <div>
             <label className="label flex items-center">
               <Phone className="h-4 w-4 mr-2 text-gray-500" />
-              Phone Number *
+              Phone Number
             </label>
             <input
               type="tel"
-              {...register('phoneNumber', { 
-                required: 'Phone number is required',
+              {...register('phoneNumber', {
                 pattern: {
                   value: /^[0-9+\-\s()]+$/,
                   message: 'Please enter a valid phone number'
                 },
                 validate: async (value) => {
-                  if (!value) return true; // Let required validation handle empty values
+                  if (!value) return true; // Not required, so empty is valid
                   if (!validatePhoneNumber(value)) {
                     return 'Please enter a valid phone number';
                   }
@@ -227,7 +228,7 @@ const CreateFacultyModal = ({ isOpen, onClose, onSuccess }) => {
               <label className="label">Custom Designation *</label>
               <input
                 type="text"
-                {...register('customDesignation', { 
+                {...register('customDesignation', {
                   required: watch('designation') === 'Other' ? 'Custom designation is required' : false
                 })}
                 className={`input ${errors.customDesignation ? 'border-red-300 focus:ring-red-500' : ''}`}
@@ -245,7 +246,7 @@ const CreateFacultyModal = ({ isOpen, onClose, onSuccess }) => {
               <label className="label">Custom Department *</label>
               <input
                 type="text"
-                {...register('customDepartment', { 
+                {...register('customDepartment', {
                   required: watch('department') === 'Other' ? 'Custom department is required' : false
                 })}
                 className={`input ${errors.customDepartment ? 'border-red-300 focus:ring-red-500' : ''}`}

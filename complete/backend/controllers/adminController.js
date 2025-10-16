@@ -18,7 +18,7 @@ const login = async (req, res) => {
 
     const { email, password } = req.body;
     const admin = await Admin.findOne({ email, isActive: true });
-    
+
     if (!admin) {
       return res.status(400).json({ message: 'Invalid credentials' });
     }
@@ -86,8 +86,8 @@ const createFaculty = async (req, res) => {
   } catch (error) {
     console.error('Create faculty error:', error);
     if (error.code === 11000) {
-      return res.status(400).json({ 
-        message: 'Phone number already exists. Please use a different phone number.' 
+      return res.status(400).json({
+        message: 'Phone number already exists. Please use a different phone number.'
       });
     }
     res.status(500).json({ message: 'Server error' });
@@ -115,8 +115,8 @@ const updateFaculty = async (req, res) => {
   } catch (error) {
     console.error('Update faculty error:', error);
     if (error.code === 11000) {
-      return res.status(400).json({ 
-        message: 'Phone number already exists. Please use a different phone number.' 
+      return res.status(400).json({
+        message: 'Phone number already exists. Please use a different phone number.'
       });
     }
     res.status(500).json({ message: 'Server error' });
@@ -234,7 +234,7 @@ const getAllSubjects = async (req, res) => {
       .populate('course', 'courseName courseCode')
       .populate('faculty', 'name designation department')
       .sort({ course: 1, year: 1, semester: 1 });
-    
+
     res.json(subjects);
   } catch (error) {
     console.error('Get subjects error:', error);
@@ -251,7 +251,7 @@ const createSubject = async (req, res) => {
 
     const subject = new Subject(req.body);
     await subject.save();
-    
+
     // Add subject to faculty's subjects array only if faculty is provided
     if (req.body.faculty) {
       await Faculty.findByIdAndUpdate(
@@ -264,7 +264,7 @@ const createSubject = async (req, res) => {
     if (subject.faculty) {
       await subject.populate('faculty', 'name designation department');
     }
-    
+
     res.status(201).json(subject);
   } catch (error) {
     console.error('Create subject error:', error);
@@ -309,7 +309,7 @@ const updateSubject = async (req, res) => {
           { $pull: { subjects: subject._id } }
         );
       }
-      
+
       // Add to new faculty if provided
       if (newFacultyId) {
         await Faculty.findByIdAndUpdate(
