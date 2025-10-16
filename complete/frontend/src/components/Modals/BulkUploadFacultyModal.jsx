@@ -4,13 +4,18 @@ import { adminAPI } from '../../services/api';
 
 const REQUIRED_HEADERS = [
   'Name',
-  'Phone Number',
   'Dept/Course',
   'Designation',
   'Subject',
   'Year',
   'Semester',
 ];
+
+const OPTIONAL_HEADERS = [
+  'Phone Number',
+];
+
+const ALL_HEADERS = [...REQUIRED_HEADERS, ...OPTIONAL_HEADERS];
 
 const parseCSV = async (file) => {
   const text = await file.text();
@@ -127,7 +132,6 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
     sanitizedRows.forEach((r) => {
       const rowErrors = [];
       const name = r['Name'];
-      const phone = r['Phone Number'];
       const dept = r['Dept/Course'];
       const designation = r['Designation'];
       const subject = r['Subject'];
@@ -135,7 +139,6 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
       const semester = r['Semester'];
 
       if (!name) rowErrors.push('Name is required');
-      if (!phone) rowErrors.push('Phone Number is required');
       if (!dept) rowErrors.push('Dept/Course is required');
       if (!designation) rowErrors.push('Designation is required');
 
@@ -163,7 +166,7 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
       const subjectCode = existingSubject ? existingSubject.subjectCode : computeSubjectCode(r['Subject']);
       return {
         name: r['Name'],
-        phoneNumber: r['Phone Number'],
+        phoneNumber: r['Phone Number'] || null,
         department: r['Dept/Course'],
         designation: r['Designation'],
         subject: {
@@ -247,7 +250,7 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
             <AlertTriangle className="h-5 w-5 mt-0.5" />
             <div>
               <p className="font-semibold mb-1">CSV Requirements</p>
-              <p>Include columns: Name, Phone Number, Dept/Course, Designation, Subject, Year, Semester.</p>
+              <p>Required columns: {REQUIRED_HEADERS.join(', ')}. Optional columns: {OPTIONAL_HEADERS.join(', ')}.</p>
               <p className="mt-1">- Dept/Course must match an existing course name. If not, you can change it inline below.</p>
               <p>- Subject will be created if it does not exist. Subject Code rule: single-word → first 3 letters; multi-word → initials.</p>
             </div>
@@ -273,7 +276,7 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Row</th>
-                    {REQUIRED_HEADERS.map(h => (
+                    {ALL_HEADERS.map(h => (
                       <th key={h} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{h}</th>
                     ))}
                     <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -285,7 +288,7 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
                     return (
                       <tr key={r.__row} className={rowErrs.length ? 'bg-red-50' : ''}>
                         <td className="px-3 py-2 whitespace-nowrap text-gray-500">{r.__row}</td>
-                        {REQUIRED_HEADERS.map((h) => (
+                        {ALL_HEADERS.map((h) => (
                           <td key={h} className="px-3 py-2 whitespace-nowrap">
                             {h === 'Dept/Course' ? (
                               <select
@@ -339,5 +342,3 @@ const BulkUploadFacultyModal = ({ isOpen, onClose }) => {
 };
 
 export default BulkUploadFacultyModal;
-
-

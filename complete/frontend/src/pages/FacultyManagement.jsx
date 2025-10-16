@@ -66,10 +66,10 @@ const FacultyManagement = () => {
   const handleDeleteSuccess = () => {
     setFaculty(prev => prev.filter(f => f._id !== selectedFaculty._id));
     toast.success('Faculty deleted successfully!');
-    
+
     // Trigger a custom event to notify other components
-    window.dispatchEvent(new CustomEvent('facultyDeleted', { 
-      detail: { facultyId: selectedFaculty._id } 
+    window.dispatchEvent(new CustomEvent('facultyDeleted', {
+      detail: { facultyId: selectedFaculty._id }
     }));
   };
 
@@ -98,7 +98,7 @@ const FacultyManagement = () => {
   // Filter and search faculty
   const filteredFaculty = faculty.filter(f => {
     const matchesSearch = f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      f.phoneNumber.includes(searchTerm) ||
+      (f.phoneNumber || '').includes(searchTerm) ||
       f.designation.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = !filterDepartment || f.department === filterDepartment;
     return matchesSearch && matchesDepartment;
@@ -249,7 +249,7 @@ const FacultyManagement = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm text-gray-900">
                         <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                        {faculty.phoneNumber}
+                        {faculty.phoneNumber || 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

@@ -19,7 +19,7 @@ router.get('/faculty', auth, adminController.getAllFaculty);
 router.post('/faculty', [
   auth,
   body('name').trim().notEmpty(),
-  body('phoneNumber').trim().notEmpty(),
+  body('phoneNumber').optional().trim(),
   body('designation').trim().notEmpty(),
   body('department').trim().notEmpty()
 ], adminController.createFaculty);

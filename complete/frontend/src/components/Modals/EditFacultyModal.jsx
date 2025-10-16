@@ -60,7 +60,7 @@ const EditFacultyModal = ({ isOpen, onClose, onSuccess, faculty }) => {
     setLoading(true);
     try {
       // Check if phone number already exists (excluding current faculty)
-      if (data.phoneNumber !== faculty.phoneNumber) {
+      if (data.phoneNumber && data.phoneNumber !== faculty.phoneNumber) {
         const phoneExists = await checkPhoneNumberExists(data.phoneNumber, faculty._id);
         if (phoneExists) {
           setError('phoneNumber', {
@@ -139,7 +139,7 @@ const EditFacultyModal = ({ isOpen, onClose, onSuccess, faculty }) => {
             </label>
             <input
               type="text"
-              {...register('name', { 
+              {...register('name', {
                 required: 'Name is required',
                 minLength: { value: 2, message: 'Name must be at least 2 characters' }
               })}
@@ -155,18 +155,17 @@ const EditFacultyModal = ({ isOpen, onClose, onSuccess, faculty }) => {
           <div>
             <label className="label flex items-center">
               <Phone className="h-4 w-4 mr-2 text-gray-500" />
-              Phone Number *
+              Phone Number
             </label>
             <input
               type="tel"
-              {...register('phoneNumber', { 
-                required: 'Phone number is required',
+              {...register('phoneNumber', {
                 pattern: {
                   value: /^[0-9+\-\s()]+$/,
                   message: 'Please enter a valid phone number'
                 },
                 validate: async (value) => {
-                  if (!value) return true; // Let required validation handle empty values
+                  if (!value) return true; // Not required, so empty is valid
                   if (!validatePhoneNumber(value)) {
                     return 'Please enter a valid phone number';
                   }
@@ -227,13 +226,13 @@ const EditFacultyModal = ({ isOpen, onClose, onSuccess, faculty }) => {
             </label>
             <select
               {...register('department', { required: 'Department is required' })}
-            className={`input ${errors.department ? 'border-red-300 focus:ring-red-500' : ''}`}
-            disabled={coursesLoading}
+              className={`input ${errors.department ? 'border-red-300 focus:ring-red-500' : ''}`}
+              disabled={coursesLoading}
             >
-            <option value="">{coursesLoading ? 'Loading departments...' : 'Select department'}</option>
-            {courses.map((name) => (
-              <option key={name} value={name}>{name}</option>
-            ))}
+              <option value="">{coursesLoading ? 'Loading departments...' : 'Select department'}</option>
+              {courses.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
               <option value="Other">Other</option>
             </select>
             {errors.department && (
@@ -247,7 +246,7 @@ const EditFacultyModal = ({ isOpen, onClose, onSuccess, faculty }) => {
               <label className="label">Custom Designation *</label>
               <input
                 type="text"
-                {...register('customDesignation', { 
+                {...register('customDesignation', {
                   required: watch('designation') === 'Other' ? 'Custom designation is required' : false
                 })}
                 className={`input ${errors.customDesignation ? 'border-red-300 focus:ring-red-500' : ''}`}
@@ -265,7 +264,7 @@ const EditFacultyModal = ({ isOpen, onClose, onSuccess, faculty }) => {
               <label className="label">Custom Department *</label>
               <input
                 type="text"
-                {...register('customDepartment', { 
+                {...register('customDepartment', {
                   required: watch('department') === 'Other' ? 'Custom department is required' : false
                 })}
                 className={`input ${errors.customDepartment ? 'border-red-300 focus:ring-red-500' : ''}`}
