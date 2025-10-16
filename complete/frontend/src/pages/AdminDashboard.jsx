@@ -35,19 +35,19 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchStats();
-    
+
     // Listen for deletion events
     const handleSubjectDeleted = () => {
       fetchStats();
     };
-    
+
     const handleFacultyDeleted = () => {
       fetchStats();
     };
-    
+
     window.addEventListener('subjectDeleted', handleSubjectDeleted);
     window.addEventListener('facultyDeleted', handleFacultyDeleted);
-    
+
     return () => {
       window.removeEventListener('subjectDeleted', handleSubjectDeleted);
       window.removeEventListener('facultyDeleted', handleFacultyDeleted);
@@ -83,15 +83,7 @@ const AdminDashboard = () => {
   };
 
   const quickActions = [
-    {
-      title: 'Manage Faculty',
-      description: 'View, add, edit, and delete faculty members',
-      icon: UserPlus,
-      color: 'bg-blue-500',
-      action: () => {
-        window.location.href = '/admin/faculty';
-      }
-    },
+
     {
       title: 'Manage Courses',
       description: 'View, add, edit, and delete courses',
@@ -99,6 +91,15 @@ const AdminDashboard = () => {
       color: 'bg-green-500',
       action: () => {
         window.location.href = '/admin/courses';
+      }
+    },
+    {
+      title: 'Manage Faculty',
+      description: 'View, add, edit, and delete faculty members',
+      icon: UserPlus,
+      color: 'bg-blue-500',
+      action: () => {
+        window.location.href = '/admin/faculty';
       }
     },
     {
@@ -213,34 +214,34 @@ const AdminDashboard = () => {
       <main className="flex-1 p-6 space-y-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 gap-4 sm:gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 mb-6">
-  {statCards.map((stat) => (
-    <div
-      key={stat.name}
-      className="bg-white rounded-xl shadow-lg p-3 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-200"
-    >
-      <div className="flex items-center">
-        <div
-          className={`flex-shrink-0 p-2 sm:p-3 rounded-lg ${stat.bgColor}`}
-        >
-          <stat.icon
-            className={`h-4 w-4 sm:h-6 sm:w-6 ${stat.color}`}
-          />
+          {statCards.map((stat) => (
+            <div
+              key={stat.name}
+              className="bg-white rounded-xl shadow-lg p-3 sm:p-6 border border-gray-100 hover:shadow-xl transition-all duration-200"
+            >
+              <div className="flex items-center">
+                <div
+                  className={`flex-shrink-0 p-2 sm:p-3 rounded-lg ${stat.bgColor}`}
+                >
+                  <stat.icon
+                    className={`h-4 w-4 sm:h-6 sm:w-6 ${stat.color}`}
+                  />
+                </div>
+                <div className="ml-2 sm:ml-4">
+                  <p className="text-[10px] sm:text-sm font-medium text-gray-500">
+                    {stat.name}
+                  </p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-900">
+                    {stat.value}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="ml-2 sm:ml-4">
-          <p className="text-[10px] sm:text-sm font-medium text-gray-500">
-            {stat.name}
-          </p>
-          <p className="text-lg sm:text-2xl font-bold text-gray-900">
-            {stat.value}
-          </p>
-        </div>
-      </div>
-    </div>
-  ))}
-</div>
 
 
-        {/* Quick Actions */}
+        {/* Actions */}
         <div className="bg-none shadow-none border:none p-none sm:bg-white rounded-2xl sm:shadow-lg sm:p-6 sm:border sm:border-gray-100">
           <div className="mb-6">
             <h2 className="text-lg sm:text-2xl font-bold text-gray-900">Actions</h2>
@@ -250,40 +251,40 @@ const AdminDashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             {quickActions.map((action, index) => (
               <button
-              key={index}
-              onClick={action.action}
-              className="group p-4 sm:p-6 bg-gradient-to-br from-gray-50 to-white rounded-xl border hover:shadow-lg transition-all duration-200 text-left card-hover-effect relative overflow-hidden"
-              style={{ '--hover-color': colorMap[action.color], borderColor: 'bg-gray-600' }}
-            >
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <div className="flex items-center mb-2 sm:mb-4">
-                  <div
-                    className={`p-2 sm:p-3 rounded-lg ${action.color} group-hover:scale-110 transition-transform duration-200`}
-                  >
-                    <action.icon className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+                key={index}
+                onClick={action.action}
+                className="group p-4 sm:p-6 bg-gradient-to-br from-gray-50 to-white rounded-xl border hover:shadow-lg transition-all duration-200 text-left card-hover-effect relative overflow-hidden"
+                style={{ '--hover-color': colorMap[action.color], borderColor: 'bg-gray-600' }}
+              >
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  <div className="flex items-center mb-2 sm:mb-4">
+                    <div
+                      className={`p-2 sm:p-3 rounded-lg ${action.color} group-hover:scale-110 transition-transform duration-200`}
+                    >
+                      <action.icon className="h-4 w-4 sm:h-6 sm:w-6 text-white" />
+                    </div>
+
+                    {/* Desktop Plus Icon */}
+                    <Plus
+                      className="hidden sm:block h-4 w-4 text-gray-400 ml-auto group-hover:text-[color:var(--hover-color)] transition-colors"
+                      style={{ '--hover-color': borderColorMap[action.color] }}
+                    />
+
+                    {/* Mobile Arrow Icon */}
+                    <ArrowRightIcon
+                      className="block sm:hidden h-5 w-5 text-gray-400 ml-auto group-hover:text-[color:var(--hover-color)] transition-colors"
+                      style={{ '--hover-color': borderColorMap[action.color] }}
+                    />
                   </div>
-            
-                  {/* Desktop Plus Icon */}
-                  <Plus
-                    className="hidden sm:block h-4 w-4 text-gray-400 ml-auto group-hover:text-[color:var(--hover-color)] transition-colors"
-                    style={{ '--hover-color': borderColorMap[action.color] }}
-                  />
-            
-                  {/* Mobile Arrow Icon */}
-                  <ArrowRightIcon
-                    className="block sm:hidden h-5 w-5 text-gray-400 ml-auto group-hover:text-[color:var(--hover-color)] transition-colors"
-                    style={{ '--hover-color': borderColorMap[action.color] }}
-                  />
+
+                  <h3 className="text-sm sm:text-lg font-semibold text-gray-900 mb-1 sm:mb-2">{action.title}</h3>
+                  <p className="text-xs sm:text-sm text-gray-600">{action.description}</p>
                 </div>
-            
-                <h3 className="text-sm sm:text-lg font-semibold text-gray-900 mb-1 sm:mb-2">{action.title}</h3>
-                <p className="text-xs sm:text-sm text-gray-600">{action.description}</p>
-              </div>
-            
-              {/* Optional: subtle shimmer effect on mobile */}
-              <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-20 transition-opacity rounded-xl pointer-events-none"></span>
-            </button>
-            
+
+                {/* Optional: subtle shimmer effect on mobile */}
+                <span className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 opacity-0 group-hover:opacity-20 transition-opacity rounded-xl pointer-events-none"></span>
+              </button>
+
             ))}
           </div>
         </div>
