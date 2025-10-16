@@ -887,11 +887,18 @@ const exportComprehensiveAnalytics = async (req, res) => {
       })
       .populate({
         path: 'subjectResponses.subject',
-        populate: {
-          path: 'faculty',
-          model: 'Faculty',
-          select: 'name designation department'
-        }
+        populate: [
+          {
+            path: 'faculty',
+            model: 'Faculty',
+            select: 'name designation department'
+          },
+          {
+            path: 'sectionFaculty.faculty',
+            model: 'Faculty',
+            select: 'name designation department'
+          }
+        ]
       })
       .populate('subjectResponses.form');
 
@@ -928,10 +935,36 @@ const exportComprehensiveAnalytics = async (req, res) => {
       }
 
       response.subjectResponses.forEach(sr => {
-        if (sr.form && sr.form._id.toString() === formId && sr.subject && sr.subject.faculty) {
+        if (sr.form && sr.form._id.toString() === formId && sr.subject) {
           const subjectName = sr.subject.subjectName;
-          const facultyName = sr.subject.faculty.name;
-          const facultyId = sr.subject.faculty._id.toString();
+          
+          // Find the correct faculty for this student's section
+          let faculty = null;
+          
+          // Check if subject has section-specific faculty assignments
+          if (sr.subject.sectionFaculty && sr.subject.sectionFaculty.length > 0 && sectionId) {
+            // Find faculty for this specific section
+            const sectionFacultyEntry = sr.subject.sectionFaculty.find(
+              sf => sf.section && sf.section.toString() === sectionId.toString()
+            );
+            if (sectionFacultyEntry && sectionFacultyEntry.faculty) {
+              faculty = sectionFacultyEntry.faculty;
+            }
+          }
+          
+          // Fall back to default faculty if no section-specific faculty found
+          if (!faculty && sr.subject.faculty) {
+            faculty = sr.subject.faculty;
+          }
+          
+          // Skip if no faculty found
+          if (!faculty) {
+            console.warn(`No faculty found for subject ${subjectName} in section ${sectionName}`);
+            return;
+          }
+          
+          const facultyName = faculty.name;
+          const facultyId = faculty._id.toString();
 
           // Create unique key
           const key = `${year}|${semester}|${courseName}|${sectionName}|${subjectName}|${facultyId}`;
