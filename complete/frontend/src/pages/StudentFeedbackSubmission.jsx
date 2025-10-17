@@ -610,12 +610,12 @@ const StudentFeedbackSubmission = () => {
                           <input
                             type="text"
                             {...register('rollNumber', {
-                              required: 'Roll number is required', validate: (value) =>
-                                /^[0-9]{3}[a-zA-Z][0-9][a-zA-Z][0-9]{2}[a-zA-Z0-9][0-9]$/
-                                  .test(value) ||
-                                'Roll number must match 236T1A0508 format',
+                              required: 'Roll number is required',
+                              minLength: {
+                                value: 4,
+                                message: 'Roll number must be at least 4 characters'
+                              }
                             })}
-
                             onInput={(e) => {
                               e.target.value = e.target.value.toUpperCase();
                             }}

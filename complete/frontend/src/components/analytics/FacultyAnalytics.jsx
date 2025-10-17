@@ -3,6 +3,7 @@ import PieChart from './PieChart';
 import BarChart from './BarChart';
 import HorizontalBarChart from './HorizontalBarChart';
 import Histogram from './Histogram';
+import { mapRatingToWord } from '../../utils/ratingMapper';
 
 const FacultyAnalytics = ({ data, questions, showCharts }) => {
 
@@ -91,7 +92,19 @@ const FacultyAnalytics = ({ data, questions, showCharts }) => {
 
     switch (analytics.questionType) {
       case 'scale':
-        return analytics.analytics.average?.toFixed(2) || <span className="text-gray-400">N/A</span>;
+        if (!analytics.analytics.average) {
+          return <span className="text-gray-400">N/A</span>;
+        }
+        const avg = analytics.analytics.average;
+        const scaleMax = analytics.scaleMax || 5; // Get from analytics or default to 5
+        const ratingInfo = mapRatingToWord(avg, scaleMax);
+        
+        return (
+          <div className={`inline-flex items-center px-3 py-1 rounded-full border ${ratingInfo.bgColor} ${ratingInfo.textColor} ${ratingInfo.borderColor}`}>
+            <span className="font-semibold">{ratingInfo.word}</span>
+            <span className="ml-1">({avg.toFixed(2)})</span>
+          </div>
+        );
       case 'yesno':
         return (
           <div>

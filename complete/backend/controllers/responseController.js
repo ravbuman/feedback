@@ -6,6 +6,7 @@ const FeedbackForm = require('../models/FeedbackForm');
 const mongoose = require('mongoose');
 const ExcelJS = require('exceljs');
 const fuzz = require('fuzzball');
+const { mapRatingToWord, formatRatingWithWord } = require('../utils/ratingMapper');
 
 // Get all responses with filtering options
 const getAllResponses = async (req, res) => {
@@ -1051,7 +1052,13 @@ const exportComprehensiveAnalytics = async (req, res) => {
               const scaleValues = answers.map(a => parseInt(a)).filter(v => !isNaN(v));
               if (scaleValues.length > 0) {
                 const avg = scaleValues.reduce((s, v) => s + v, 0) / scaleValues.length;
-                analytics = avg.toFixed(2);
+                const scaleMax = question.scaleMax || 5; // Get scale max from question
+                const ratingInfo = mapRatingToWord(avg, scaleMax);
+                analytics = `${ratingInfo.word} (${avg.toFixed(2)})`;
+                
+                // Store rating info for cell styling
+                if (!group.ratingData) group.ratingData = {};
+                group.ratingData[`Q${qIndex + 1}`] = ratingInfo;
               }
               break;
 
@@ -1260,6 +1267,9 @@ const exportComprehensiveAnalytics = async (req, res) => {
         if (a.sectionName !== b.sectionName) return a.sectionName.localeCompare(b.sectionName);
         return a.subjectName.localeCompare(b.subjectName);
       });
+      
+      // Store row data with rating info for later styling
+      const rowRatingData = [];
 
       const yearSemMap = {
         1: { 1: 'I-I', 2: 'I-II' },
@@ -1317,6 +1327,13 @@ const exportComprehensiveAnalytics = async (req, res) => {
         };
 
         worksheet.addRow(rowData);
+        
+        // Store rating data for this row
+        rowRatingData.push({
+          rowNumber: currentRowNumber,
+          ratingData: row.ratingData || {}
+        });
+        
         currentRowNumber++;
 
         // If this is the last row, merge the final group
@@ -1391,6 +1408,32 @@ const exportComprehensiveAnalytics = async (req, res) => {
               indent: 1
             };
           }
+        });
+      });
+      
+      // Apply rating colors to scale question cells
+      rowRatingData.forEach(({ rowNumber, ratingData }) => {
+        Object.keys(ratingData).forEach(questionKey => {
+          const ratingInfo = ratingData[questionKey];
+          const questionIndex = parseInt(questionKey.substring(1)); // Extract number from "Q1", "Q2", etc.
+          const colNumber = 6 + questionIndex; // 6 fixed columns + question index
+          
+          const cell = worksheet.getCell(rowNumber, colNumber);
+          
+          // Apply background color
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF' + ratingInfo.bgColor.substring(1) } // Convert #RRGGBB to FFRRGGBB
+          };
+          
+          // Make text bold and centered for rating cells
+          cell.font = { bold: true, size: 11 };
+          cell.alignment = { 
+            vertical: 'middle', 
+            horizontal: 'center',
+            wrapText: true
+          };
         });
       });
     });
