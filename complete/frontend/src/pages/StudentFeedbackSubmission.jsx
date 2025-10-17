@@ -242,7 +242,40 @@ const StudentFeedbackSubmission = () => {
       return;
     }
 
-    // Step 3: Submit all responses
+    // Step 3: Validate and submit all responses
+    // Check if user has filled at least one subject's responses
+    if (Object.keys(responses).length === 0) {
+      toast.error('Please fill out the feedback form for at least one subject');
+      setSubmitting(false);
+      return;
+    }
+
+    // Validate required fields for each subject
+    const validationErrors = [];
+    subjects.forEach(subject => {
+      const subjectResponses = responses[subject._id];
+      
+      if (!subjectResponses) {
+        validationErrors.push(`Please fill out feedback for ${subject.subjectName}`);
+        return;
+      }
+
+      feedbackForm.questions.forEach((question, index) => {
+        if (question.isRequired) {
+          const answer = subjectResponses[index];
+          if (answer === undefined || answer === null || answer === '') {
+            validationErrors.push(`${subject.subjectName}: Question "${question.questionText}" is required`);
+          }
+        }
+      });
+    });
+
+    if (validationErrors.length > 0) {
+      toast.error(validationErrors[0]); // Show first error
+      setSubmitting(false);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const submissionData = {

@@ -1175,12 +1175,14 @@ const exportComprehensiveAnalytics = async (req, res) => {
         { header: 'STUDENTS GAVE FB', key: 'count', width: 18 }
       ];
 
-      // Add question columns
+      // Add question columns with dynamic width based on question type
       form.questions.forEach((q, idx) => {
+        // Text/textarea questions need more width for long responses
+        const width = (q.questionType === 'text' || q.questionType === 'textarea') ? 50 : 20;
         columns.push({
           header: `Q${idx + 1}: ${q.questionText.substring(0, 30)}...`,
           key: `Q${idx + 1}`,
-          width: 20
+          width: width
         });
       });
 
@@ -1354,9 +1356,20 @@ const exportComprehensiveAnalytics = async (req, res) => {
         // Skip title rows (1, 2) and separator rows (height = 5)
         if (rowNumber <= 2 || row.height === 5) return;
         
-        // Set row height for better spacing (except header and title rows)
+        // Set row height dynamically based on content (except header and title rows)
         if (rowNumber > 3) {
-          row.height = 25; // Increased row height for better readability
+          // Calculate height based on cell content
+          let maxHeight = 25; // Minimum height
+          row.eachCell((cell) => {
+            if (cell.value && typeof cell.value === 'string') {
+              // Estimate height based on text length and newlines
+              const lines = cell.value.split('\n').length;
+              const estimatedLines = Math.max(lines, Math.ceil(cell.value.length / 50));
+              const estimatedHeight = estimatedLines * 15 + 10; // 15px per line + padding
+              maxHeight = Math.max(maxHeight, Math.min(estimatedHeight, 200)); // Cap at 200
+            }
+          });
+          row.height = maxHeight;
         }
         
         row.eachCell((cell, colNumber) => {
