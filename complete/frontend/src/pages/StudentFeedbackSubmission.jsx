@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { studentAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import Swal from 'sweetalert2';
 
 const StudentFeedbackSubmission = () => {
   const { formId } = useParams();
@@ -138,7 +139,12 @@ const StudentFeedbackSubmission = () => {
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Failed to load feedback form');
+      Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: 'Failed to load feedback form',
+        confirmButtonColor: '#8B5CF6'
+      });
       setIsInactive(true); // Show inactive card on error as well
     } finally {
       setLoading(false);
@@ -148,20 +154,22 @@ const StudentFeedbackSubmission = () => {
   const showSubmittedCard = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+        <div className="bg-gradient-to-br from-white to-violet-50 rounded-2xl shadow-2xl p-12 max-w-md w-full border-2 border-violet-100 animate-fadeIn">
           <div className="flex justify-center mb-6">
-            <CheckCircle2 className="h-16 w-16 text-green-500" />
+            <div className="bg-gradient-to-r from-violet-600 to-purple-600 rounded-full p-4 shadow-lg">
+              <CheckCircle2 className="h-16 w-16 text-white" />
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent mb-3">
             Feedback Submitted
           </h1>
-          <p className="text-gray-600 mb-6">
-            You’ve successfully submitted this feedback form from this device.
+          <p className="text-gray-600 mb-8 text-lg">
+            You've successfully submitted this feedback form from this device.
             Thank you for your time and valuable input!
           </p>
           <button
             onClick={() => navigate('/')}
-            className="px-5 py-2.5 bg-royal-600 text-white rounded-lg hover:bg-royal-700 transition"
+            className="px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:from-violet-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             Go to Home
           </button>
@@ -173,19 +181,21 @@ const StudentFeedbackSubmission = () => {
   const showInactiveCard = () => {
     return (
       <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
-        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+        <div className="bg-gradient-to-br from-white to-amber-50 rounded-2xl shadow-2xl p-12 max-w-md w-full border-2 border-amber-100 animate-fadeIn">
           <div className="flex justify-center mb-6">
-            <AlertTriangle className="h-16 w-16 text-amber-500" />
+            <div className="bg-gradient-to-r from-amber-500 to-orange-500 rounded-full p-4 shadow-lg">
+              <AlertTriangle className="h-16 w-16 text-white" />
+            </div>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-3">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-3">
             Form Not Active
           </h1>
-          <p className="text-gray-600 mb-6">
+          <p className="text-gray-600 mb-8 text-lg">
             This feedback form is not currently in an active period and cannot accept submissions.
           </p>
           <button
             onClick={() => navigate('/')}
-            className="px-5 py-2.5 bg-royal-600 text-white rounded-lg hover:bg-royal-700 transition"
+            className="px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:from-violet-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             Go to Home
           </button>
@@ -217,7 +227,12 @@ const StudentFeedbackSubmission = () => {
       }
     } catch (error) {
       console.error('Error fetching subjects:', error);
-      toast.error('Failed to load subjects');
+      Swal.fire({
+        icon: 'error',
+        title: 'Oops...',
+        text: 'Failed to load subjects',
+        confirmButtonColor: '#8B5CF6'
+      });
     }
   };
 
@@ -245,7 +260,12 @@ const StudentFeedbackSubmission = () => {
     // Step 3: Validate and submit all responses
     // Check if user has filled at least one subject's responses
     if (Object.keys(responses).length === 0) {
-      toast.error('Please fill out the feedback form for at least one subject');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Incomplete Form',
+        text: 'Please fill out the feedback form for at least one subject',
+        confirmButtonColor: '#8B5CF6'
+      });
       setSubmitting(false);
       return;
     }
@@ -271,7 +291,12 @@ const StudentFeedbackSubmission = () => {
     });
 
     if (validationErrors.length > 0) {
-      toast.error(validationErrors[0]); // Show first error
+      Swal.fire({
+        icon: 'warning',
+        title: 'Required Field Missing',
+        text: validationErrors[0],
+        confirmButtonColor: '#8B5CF6'
+      });
       setSubmitting(false);
       return;
     }
@@ -327,7 +352,13 @@ const StudentFeedbackSubmission = () => {
       };
 
       await studentAPI.submitFeedback(submissionData);
-      toast.success('Feedback submitted successfully! Thank you for your input.');
+      Swal.fire({
+        icon: 'success',
+        title: 'Success!',
+        text: 'Feedback submitted successfully! Thank you for your valuable input.',
+        confirmButtonColor: '#8B5CF6',
+        timer: 3000
+      });
       showSubmittedCard();
       const periodSpecificId = `${formId}_${feedbackForm.currentPeriod._id}`;
       recordFormSubmission(periodSpecificId);
@@ -335,7 +366,12 @@ const StudentFeedbackSubmission = () => {
     } catch (error) {
       console.error('Error submitting responses:', error);
       const serverMsg = error.response?.data?.message || error.message || 'Failed to submit feedback';
-      toast.error(serverMsg);
+      Swal.fire({
+        icon: 'error',
+        title: 'Submission Failed',
+        text: serverMsg,
+        confirmButtonColor: '#8B5CF6'
+      });
     } finally {
       setSubmitting(false);
     }
@@ -492,7 +528,10 @@ const StudentFeedbackSubmission = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-royal-600"></div>
+        <div className="relative">
+          <div className="animate-spin rounded-full h-20 w-20 border-4 border-violet-200"></div>
+          <div className="animate-spin rounded-full h-20 w-20 border-t-4 border-violet-600 absolute top-0"></div>
+        </div>
       </div>
     );
   }
@@ -512,7 +551,7 @@ const StudentFeedbackSubmission = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-white py-8">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <button
           onClick={() => navigate(-1)}
@@ -526,20 +565,22 @@ const StudentFeedbackSubmission = () => {
           ? showInactiveCard()
           : alreadySubmitted ? (
             <div className="flex flex-col items-center justify-center min-h-[70vh] text-center">
-              <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
+              <div className="bg-gradient-to-br from-white to-violet-50 rounded-2xl shadow-2xl p-12 max-w-md w-full border-2 border-violet-100 animate-fadeIn">
                 <div className="flex justify-center mb-6">
-                  <CheckCircle2 className="h-16 w-16 text-green-500" />
+                  <div className="bg-gradient-to-r from-violet-600 to-purple-600 rounded-full p-4 shadow-lg">
+                    <CheckCircle2 className="h-16 w-16 text-white" />
+                  </div>
                 </div>
-                <h1 className="text-2xl font-bold text-gray-900 mb-3">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent mb-3">
                   Feedback Already Submitted
                 </h1>
-                <p className="text-gray-600 mb-6">
-                  You’ve already submitted this feedback form from this device.
+                <p className="text-gray-600 mb-8 text-lg">
+                  You've already submitted this feedback form from this device.
                   Thank you for your time and valuable input!
                 </p>
                 <button
                   onClick={() => navigate('/')}
-                  className="px-5 py-2.5 bg-royal-600 text-white rounded-lg hover:bg-royal-700 transition"
+                  className="px-6 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl hover:from-violet-700 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl"
                 >
                   Go to Home
                 </button>

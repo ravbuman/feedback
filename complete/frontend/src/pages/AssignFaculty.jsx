@@ -63,31 +63,55 @@ const AssignFaculty = () => {
     return courseObj ? courseObj.courseName : 'Unknown Course';
   };
 
-  // Helper function to get faculty name
-  const getFacultyName = (faculty) => {
-    if (!faculty) return 'Not Assigned';
-    if (typeof faculty === 'object' && faculty.name) {
-      return faculty.name;
+  // Helper function to get faculty display (including section assignments)
+  const getFacultyDisplay = (subject) => {
+    // Check if there are section-specific faculty assignments
+    if (subject.sectionFaculty && subject.sectionFaculty.length > 0) {
+      const sectionCount = subject.sectionFaculty.length;
+      return `${sectionCount} Section${sectionCount > 1 ? 's' : ''} Assigned`;
     }
-    const facultyMember = faculty.find(f => f._id === faculty);
-    return facultyMember ? facultyMember.name : 'Unknown Faculty';
+    
+    // Otherwise check default faculty
+    if (!subject.faculty) return 'Not Assigned';
+    if (typeof subject.faculty === 'object' && subject.faculty.name) {
+      return subject.faculty.name;
+    }
+    return 'Unknown Faculty';
+  };
+
+  // Helper function for search (checks both default faculty and section faculty)
+  const getFacultyNameForSearch = (subject) => {
+    if (subject.sectionFaculty && subject.sectionFaculty.length > 0) {
+      // Return all faculty names from section assignments for search
+      return subject.sectionFaculty
+        .map(sf => sf.faculty?.name || '')
+        .filter(name => name)
+        .join(' ');
+    }
+    if (subject.faculty && typeof subject.faculty === 'object' && subject.faculty.name) {
+      return subject.faculty.name;
+    }
+    return '';
   };
 
   // Filter and search subjects
   const filteredSubjects = subjects.filter(s => {
     const matchesSearch = s.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       getCourseName(s.course).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getFacultyName(s.faculty).toLowerCase().includes(searchTerm.toLowerCase());
+      getFacultyNameForSearch(s).toLowerCase().includes(searchTerm.toLowerCase());
 
+    // Check if subject has any faculty assignment (default or section-specific)
+    const hasAssignment = s.faculty || (s.sectionFaculty && s.sectionFaculty.length > 0);
     const matchesFilter = filterStatus === 'all' ||
-      (filterStatus === 'assigned' && s.faculty) ||
-      (filterStatus === 'unassigned' && !s.faculty);
+      (filterStatus === 'assigned' && hasAssignment) ||
+      (filterStatus === 'unassigned' && !hasAssignment);
 
     return matchesSearch && matchesFilter;
   });
 
-  const assignedCount = subjects.filter(s => s.faculty).length;
-  const unassignedCount = subjects.filter(s => !s.faculty).length;
+  // Count subjects with any faculty assignment (default or section-specific)
+  const assignedCount = subjects.filter(s => s.faculty || (s.sectionFaculty && s.sectionFaculty.length > 0)).length;
+  const unassignedCount = subjects.filter(s => !s.faculty && (!s.sectionFaculty || s.sectionFaculty.length === 0)).length;
 
   if (loading) {
     return <Loader />;
@@ -217,14 +241,19 @@ const AssignFaculty = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm">
-                        <User className={`mr-2 ${subject.faculty ? 'text-gray-400' : 'text-orange-400'} h-5 w-5 md:h-4 md:w-4`} />
+                        <User className={`mr-2 ${(subject.faculty || (subject.sectionFaculty && subject.sectionFaculty.length > 0)) ? 'text-gray-400' : 'text-orange-400'} h-5 w-5 md:h-4 md:w-4`} />
                         <div>
-                          <div className={subject.faculty ? 'text-gray-900' : 'text-orange-600 font-medium'}>
-                            {getFacultyName(subject.faculty)}
+                          <div className={(subject.faculty || (subject.sectionFaculty && subject.sectionFaculty.length > 0)) ? 'text-gray-900' : 'text-orange-600 font-medium'}>
+                            {getFacultyDisplay(subject)}
                           </div>
                           {typeof subject.faculty === 'object' && subject.faculty.designation && (
                             <div className="text-xs text-gray-500">
                               {subject.faculty.designation} - {subject.faculty.department}
+                            </div>
+                          )}
+                          {subject.sectionFaculty && subject.sectionFaculty.length > 0 && (
+                            <div className="text-xs text-blue-600 mt-1">
+                              Click to view/edit section assignments
                             </div>
                           )}
                         </div>
@@ -233,15 +262,15 @@ const AssignFaculty = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => handleAssign(subject)}
-                        className={`btn md:btn-sm ${subject.faculty
+                        className={`btn md:btn-sm ${(subject.faculty || (subject.sectionFaculty && subject.sectionFaculty.length > 0))
                           ? 'btn-outline'
                           : 'btn-primary'
                           }`}
                       >
-                        {subject.faculty ? (
+                        {(subject.faculty || (subject.sectionFaculty && subject.sectionFaculty.length > 0)) ? (
                           <>
                             <UserPlus className="h-5 w-5 md:h-4 md:w-4 mr-1" />
-                            Reassign
+                            {subject.sectionFaculty && subject.sectionFaculty.length > 0 ? 'Manage' : 'Reassign'}
                           </>
                         ) : (
                           <>

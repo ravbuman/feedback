@@ -47,6 +47,13 @@ const SubjectManagement = () => {
         adminAPI.getFaculty()
       ]);
 
+      // Debug: Log subjects with sectionFaculty
+      console.log('📚 Fetched Subjects:', subjectsRes.data);
+      subjectsRes.data.forEach(subject => {
+        if (subject.sectionFaculty && subject.sectionFaculty.length > 0) {
+          console.log(`✅ ${subject.subjectName} has ${subject.sectionFaculty.length} section assignments:`, subject.sectionFaculty);
+        }
+      });
 
       setSubjects(subjectsRes.data);
       setCourses(coursesRes.data);
